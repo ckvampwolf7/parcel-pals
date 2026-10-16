@@ -1,0 +1,208 @@
+/* Parcel Pals — character art & motion. Owner: Characters team. Class prefix: pc-
+ * Rules: transform/opacity only; the un-animated (base) state of every element is the
+ * static pose, so reduced motion (global kill switch or .pc--static) still reads the mood.
+ */
+
+.pc {
+  --pc-halo: #ffffff;
+  --pc-shadow: #2d2a45;
+  --pc-shadow-a: 0.13;
+  --pc-speed: #2d2a45;
+  position: relative;
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+  vertical-align: middle;
+}
+[data-theme='dark'] .pc, [data-theme='dark'] .pc-parcel {
+  --pc-halo: #f3f1ff;
+  --pc-shadow: #000000;
+  --pc-shadow-a: 0.32;
+  --pc-speed: #c3bfe0;
+}
+.pc-svg { display: block; overflow: visible; }
+.pc-svg * { transform-box: view-box; }
+
+/* theme-aware paints */
+.pc-hl { fill: var(--pc-halo); stroke: var(--pc-halo); }
+.pc-shadow-e { fill: var(--pc-shadow); opacity: var(--pc-shadow-a); }
+.pc-speed { stroke: var(--pc-speed); opacity: 0.35; }
+.pc--truck .pc-m { fill: var(--c-char-truck, #ff9a3c); }
+.pc--plane .pc-m { fill: var(--c-char-plane, #4c8dff); }
+.pc--bunny .pc-m { fill: var(--c-char-bunny, #ff8fb1); }
+
+/* small sizes: chunkier lines, fewer details */
+.pc--tiny .pc-d, .pc--tiny .pc-x, .pc--tiny .pc-line-0, .pc--tiny .pc-line-2, .pc--tiny .pc-bubble { display: none; }
+.pc--tiny .pc-o { stroke-width: 4.8; }
+.pc--tiny .pc-hl { stroke-width: 9; }
+.pc--tiny .pc-face { transform: scale(1.14); }
+
+/* frozen: animated={false}, reduced motion, or scrolled off-screen */
+.pc--static *, .pc--static *::before, .pc--static *::after { animation: none !important; }
+.pc--paused * { animation-play-state: paused !important; }
+
+/* ─────────────── static mood poses (also the base of the animations) ─────────────── */
+.pc--sleeping .pc-lamp { fill: #d9d6ea; }
+.pc--bunny.pc--sleeping .pc-ear-f { transform: rotate(30deg); }
+.pc--bunny.pc--sleeping .pc-ear-b { transform: rotate(-26deg); }
+.pc--bunny.pc--worried .pc-ear-f { transform: rotate(14deg); }
+.pc--bunny.pc--worried .pc-ear-b { transform: rotate(-10deg); }
+.pc--bunny.pc--celebrating .pc-ear-f { transform: rotate(8deg); }
+.pc--bunny.pc--celebrating .pc-ear-b { transform: rotate(-10deg); }
+.pc--bunny.pc--celebrating .pc-arm-f { transform: translate(9px, -1px) rotate(-105deg); }
+.pc--bunny.pc--celebrating .pc-arm-b { transform: translate(-7px, -1px) rotate(105deg); }
+.pc--bunny.pc--happy .pc-arm-f { transform: rotate(-60deg); }
+.pc--plane.pc--celebrating .pc-wing { transform: rotate(70deg); }
+.pc--plane.pc--happy .pc-wing { transform: rotate(16deg); }
+.pc--truck.pc--celebrating .pc-cargo { transform: translateY(-9px) rotate(-8deg); }
+
+/* ─────────────── idle: breathe + blink ─────────────── */
+.pc--idle .pc-body { animation: pc-breathe 3.4s ease-in-out infinite; }
+.pc--idle .pc-eyes, .pc--moving .pc-eyes, .pc--worried .pc-eyes, .pc--happy .pc-eyes { animation: pc-blink 4.8s ease-in-out infinite; }
+.pc--worried .pc-eyes { animation-duration: 3.3s; }
+.pc--plane.pc--idle .pc-prop { animation: pc-prop 2.6s ease-in-out infinite; }
+.pc--bunny.pc--idle .pc-ear-f { animation: pc-ear-twitch 5s ease-in-out infinite; }
+
+/* ─────────────── moving ─────────────── */
+.pc--truck.pc--moving .pc-body { animation: pc-rumble 0.36s linear infinite; }
+.pc--truck.pc--moving .pc-cargo { animation: pc-cargo-jiggle 0.36s linear infinite; }
+.pc--moving .pc-spin { animation: pc-spin 0.45s linear infinite; }
+.pc--plane.pc--moving .pc-body { animation: pc-fly 1.8s ease-in-out infinite; }
+.pc--plane.pc--moving .pc-prop, .pc--plane.pc--celebrating .pc-prop { animation: pc-prop 0.16s linear infinite; }
+.pc--plane.pc--happy .pc-prop { animation: pc-prop 0.3s linear infinite; }
+.pc--bunny.pc--moving .pc-body { animation: pc-hop 0.64s cubic-bezier(0.33, 0, 0.5, 1) infinite; }
+.pc--bunny.pc--moving .pc-ear-f, .pc--bunny.pc--moving .pc-ear-b { animation: pc-flap 0.64s ease-in-out infinite; }
+.pc--bunny.pc--moving .pc-shadow { animation: pc-shadow-hop 0.64s cubic-bezier(0.33, 0, 0.5, 1) infinite; }
+.pc-line { animation: pc-line 0.55s linear infinite; }
+.pc-line-1 { animation-delay: -0.18s; }
+.pc-line-2 { animation-delay: -0.36s; }
+.pc-puff { animation: pc-puff 0.9s ease-out infinite; }
+
+/* ─────────────── waiting: look around + tap ─────────────── */
+.pc--waiting .pc-body { animation: pc-sway 2.8s ease-in-out infinite; }
+.pc--waiting .pc-eyes { animation: pc-look 3.4s ease-in-out infinite; }
+.pc--bunny.pc--waiting .pc-foot-f { animation: pc-tap 0.7s ease-in-out infinite; }
+.pc--truck.pc--waiting .pc-lamp { animation: pc-fade-blink 1.4s steps(1) infinite; }
+.pc-dot { animation: pc-dot 1.2s ease-in-out infinite; }
+.pc-dot-1 { animation-delay: 0.15s; }
+.pc-dot-2 { animation-delay: 0.3s; }
+
+/* ─────────────── sleeping: slow deep breaths + floating z ─────────────── */
+.pc--sleeping .pc-body { animation: pc-snooze 4.2s ease-in-out infinite; }
+.pc-z { animation: pc-z 3.2s ease-out infinite; }
+.pc-z-1 { animation-delay: -1.6s; }
+
+/* ─────────────── worried: gentle sway + sweat drop (concerned, not panicked) ─────────────── */
+.pc--worried .pc-body { animation: pc-fret 3s ease-in-out infinite; }
+.pc-drop { animation: pc-drop 3s ease-in-out infinite; }
+
+/* ─────────────── happy: bounce + twinkles ─────────────── */
+.pc--happy .pc-body { animation: pc-bounce 0.95s ease-in-out infinite; }
+.pc--happy .pc-shadow { animation: pc-shadow-bounce 0.95s ease-in-out infinite; }
+.pc--bunny.pc--happy .pc-arm-f { animation: pc-wave 0.95s ease-in-out infinite; }
+.pc--happy .pc-spin { animation: pc-spin 1.2s linear infinite; }
+.pc-tw { animation: pc-twinkle 1.5s ease-in-out infinite; }
+.pc-tw-1 { animation-delay: -0.75s; }
+
+/* ─────────────── celebrating: jump + cheer + confetti ─────────────── */
+.pc--celebrating .pc-body { animation: pc-jump 1.15s ease-in-out infinite; }
+.pc--celebrating .pc-shadow { animation: pc-shadow-jump 1.15s ease-in-out infinite; }
+.pc--bunny.pc--celebrating .pc-arm-f { animation: pc-cheer-f 0.575s ease-in-out infinite alternate; }
+.pc--bunny.pc--celebrating .pc-arm-b { animation: pc-cheer-b 0.575s ease-in-out infinite alternate; }
+.pc--plane.pc--celebrating .pc-wing { animation: pc-wing-cheer 0.575s ease-in-out infinite alternate; }
+.pc--truck.pc--celebrating .pc-cargo { animation: pc-cargo-pop 1.15s ease-in-out infinite; }
+.pc--truck.pc--celebrating .pc-spin { animation: pc-spin 0.8s linear infinite; }
+.pc-conf { animation: pc-conf 1.8s ease-in infinite; }
+.pc-conf-1 { animation-delay: -0.3s; } .pc-conf-2 { animation-delay: -1.1s; } .pc-conf-3 { animation-delay: -0.6s; }
+.pc-conf-4 { animation-delay: -1.4s; } .pc-conf-5 { animation-delay: -0.9s; } .pc-conf-6 { animation-delay: -0.2s; } .pc-conf-7 { animation-delay: -1.6s; }
+
+/* ─────────────── keyframes ─────────────── */
+@keyframes pc-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(0.99, 1.025); } }
+@keyframes pc-snooze { 0%, 100% { transform: scale(1.01, 0.985); } 50% { transform: scale(0.985, 1.03); } }
+@keyframes pc-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes pc-rumble { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.6px); } }
+@keyframes pc-cargo-jiggle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2px) rotate(-1deg); } }
+@keyframes pc-spin { to { transform: rotate(360deg); } }
+@keyframes pc-fly { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-4px) rotate(-2.5deg); } }
+@keyframes pc-prop { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(-1); } }
+@keyframes pc-hop {
+  0% { transform: translateY(0) scale(1.06, 0.92); }
+  18% { transform: translateY(-4px) scale(0.95, 1.06); }
+  50% { transform: translateY(-11px) scale(0.98, 1.03); }
+  82% { transform: translateY(-1px) scale(1, 1); }
+  100% { transform: translateY(0) scale(1.06, 0.92); }
+}
+@keyframes pc-flap { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-16deg); } }
+@keyframes pc-ear-twitch { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(9deg); } 95% { transform: rotate(-3deg); } }
+@keyframes pc-shadow-hop { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.72); opacity: 0.7; } }
+@keyframes pc-line { 0% { transform: translateX(7px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateX(-7px); opacity: 0; } }
+@keyframes pc-puff { 0% { transform: translate(0, 0) scale(0.6); opacity: 1; } 100% { transform: translate(-7px, -4px) scale(1.3); opacity: 0; } }
+@keyframes pc-sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+@keyframes pc-look { 0%, 18%, 100% { transform: translateX(0); } 28%, 50% { transform: translateX(-2.6px); } 62%, 86% { transform: translateX(2.6px); } }
+@keyframes pc-tap { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-16deg); } }
+@keyframes pc-fade-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes pc-dot { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-2.6px); } }
+@keyframes pc-z { 0% { transform: translate(0, 2px) scale(0.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(5px, -9px) scale(1.1); opacity: 0; } }
+@keyframes pc-fret { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-1.3deg); } 75% { transform: rotate(1.3deg); } }
+@keyframes pc-drop { 0% { transform: translateY(-2px) scale(0.85); opacity: 0; } 20%, 75% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(4px) scale(1); opacity: 0; } }
+@keyframes pc-bounce { 0%, 100% { transform: translateY(0) scale(1.03, 0.97); } 45% { transform: translateY(-5px) scale(0.98, 1.02); } }
+@keyframes pc-shadow-bounce { 0%, 100% { transform: scale(1); } 45% { transform: scale(0.86); } }
+@keyframes pc-wave { 0%, 100% { transform: rotate(-60deg); } 50% { transform: rotate(-95deg); } }
+@keyframes pc-twinkle { 0%, 100% { transform: scale(1) rotate(0); } 50% { transform: scale(0.55) rotate(25deg); } }
+@keyframes pc-jump {
+  0% { transform: translateY(0) scale(1.06, 0.92); }
+  18% { transform: translateY(-4px) scale(0.95, 1.06); }
+  45% { transform: translateY(-15px) scale(0.98, 1.03); }
+  72% { transform: translateY(-2px) scale(1, 1); }
+  84% { transform: translateY(0) scale(1.05, 0.94); }
+  100% { transform: translateY(0) scale(1.06, 0.92); }
+}
+@keyframes pc-shadow-jump { 0%, 100% { transform: scale(1); } 45% { transform: scale(0.62); opacity: 0.6; } }
+@keyframes pc-cheer-f { from { transform: translate(9px, -1px) rotate(-115deg); } to { transform: translate(9px, -1px) rotate(-85deg); } }
+@keyframes pc-cheer-b { from { transform: translate(-7px, -1px) rotate(115deg); } to { transform: translate(-7px, -1px) rotate(85deg); } }
+@keyframes pc-wing-cheer { from { transform: rotate(80deg); } to { transform: rotate(50deg); } }
+@keyframes pc-cargo-pop { 0%, 100% { transform: translateY(-4px) rotate(-4deg); } 45% { transform: translateY(-14px) rotate(-12deg); } }
+@keyframes pc-conf { 0% { transform: translateY(-6px) rotate(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(12px) rotate(220deg); opacity: 0; } }
+
+/* ─────────────── parcel box ─────────────── */
+.pc-parcel { display: inline-block; flex: none; line-height: 0; vertical-align: middle; --pc-halo: #ffffff; --pc-shadow: #2d2a45; --pc-shadow-a: 0.13; }
+.pc-parcel--wobble .pc-box { animation: pc-box-wobble 2.6s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes pc-box-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+
+/* ─────────────── picker ─────────────── */
+.pc-picker-wrap { min-width: 0; }
+.pc-picker { display: grid; gap: var(--sp-2); }
+.pc-option {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: var(--sp-1);
+  min-width: 0; min-height: 96px;
+  padding: var(--sp-2) var(--sp-1) var(--sp-2);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  border: 2px solid var(--c-line);
+  box-shadow: var(--shadow-chunky);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.pc-option:hover { border-color: var(--c-ink-3); }
+.pc-option:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(45, 42, 69, 0.14); }
+.pc-option[aria-checked='true'] { border-color: var(--c-primary); background: var(--c-primary-soft); }
+.pc-option:focus-visible { outline: 3px solid var(--c-primary); outline-offset: 2px; border-radius: var(--r-md); }
+.pc-option-art { display: grid; place-items: center; height: 52px; width: 100%; }
+.pc-option-name {
+  font-family: var(--font-display); font-weight: 400; font-size: var(--fs-sm); line-height: var(--lh-tight);
+  color: var(--c-ink); text-align: center; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pc-option-check {
+  position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: var(--r-full);
+  box-shadow: 0 0 0 2px var(--c-surface);
+  display: grid; place-items: center;
+  background: var(--c-primary); color: var(--c-on-primary);
+  transform: scale(0); transition: transform var(--dur) var(--ease-bounce);
+}
+.pc-option[aria-checked='true'] .pc-option-check { transform: scale(1); }
+.pc-auto { position: relative; display: block; width: 58px; height: 50px; }
+.pc-auto .pc-auto-b { position: absolute; left: 0; top: 0; }
+.pc-auto .pc-auto-a { position: absolute; right: 0; bottom: 0; }
+.pc-picker-hint { margin-top: var(--sp-2); font-size: var(--fs-xs); line-height: var(--lh); color: var(--c-ink-2); }
