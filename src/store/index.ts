@@ -8,7 +8,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { AddParcelInput, AppEvent, Checkpoint, InboxItem, Parcel, Settings } from '@/types';
 import {
   autoCharacter, carrierName, checkpointLine, createSimClock, demoCreatedAt, demoParcelSeeds, detectCarriers, getCarrier,
-  getProvider, normalizeTrackingNumber, validateTrackingNumber, type SimClock,
+  dummyTrackingNumber, getProviderFor, LiveTrackingError, normalizeTrackingNumber, setLiveApiKey, trackLive,
+  validateTrackingNumber, type SimClock,
 } from '@/engine';
 import { setCurrentLocale } from '@/i18n';
 import { INBOX_CAP, clearPersisted, loadPersisted, savePersisted } from './persist';
@@ -26,7 +27,28 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   reduceMotion: 'system',
   onboarded: false,
+  liveRefreshMin: 10,
 };
+
+/** Live lookups: never more often than this, even for manual refreshes (be kind to the free API). */
+const LIVE_MIN_GAP_MS = 30_000;
+/** Real "now" for a parcel: demo parcels follow the simulation clock, real parcels the wall clock. */
+function nowForParcel(p: Pick<Parcel, 'demo'>): Date { return p.demo ? clock.now() : new Date(); }
+/** Should a live parcel be looked up now? */
+function liveDue(p: Parcel, force: boolean): boolean {
+  if (p.demo) return true;
+  const last = p.lastCheckedAt ? Date.parse(p.lastCheckedAt) : 0;
+  const since = Date.now() - last;
+  if (force) return since >= LIVE_MIN_GAP_MS;
+  const s = p.snapshot;
+  if (s?.liveStatus === 'unsupported') return false;
+  if (s?.status === 'delivered') {
+    const doneAt = Date.parse(s.checkpoints.at(-1)?.time ?? s.updatedAt);
+    if (Date.now() - doneAt > 24 * 3.6e6) return false; // finished: nothing more will happen
+  }
+  const minutes = state.settings.liveRefreshMin ?? 10;
+  return since >= minutes * 60_000;
+}
 
 /** Thrown by actions.addParcel for input that can't be a tracking number. `reason` → t(`engine.error.${reason}`). */
 export class InvalidTrackingNumberError extends Error {
@@ -88,6 +110,7 @@ function hydrate() {
   deliveredNotified.clear();
   for (const p of state.parcels) if (p.snapshot?.status === 'delivered') deliveredNotified.add(p.id);
   setCurrentLocale(state.settings.locale);
+  setLiveApiKey(state.settings.trackerApiKey);
 }
 hydrate();
 
@@ -137,11 +160,13 @@ async function doRefresh(id: string): Promise<void> {
   if (!p) return;
   patchParcel(id, { refreshing: true });
   let snap;
+  const checkedAt = new Date().toISOString();
   try {
-    snap = await getProvider().track({ trackingNumber: p.trackingNumber, carrierId: p.carrierId, createdAt: p.createdAt, demo: p.demo }, clock.now());
+    snap = await getProviderFor(p).track({ trackingNumber: p.trackingNumber, carrierId: p.carrierId, createdAt: p.createdAt, demo: p.demo }, nowForParcel(p));
   } catch (err) {
-    if (find(id)) patchParcel(id, { refreshing: false, error: 'engine.error.refresh' });
-    emit({ type: 'error', message: err instanceof Error ? err.message : 'engine.error.refresh' });
+    const key = err instanceof LiveTrackingError ? `engine.error.live.${err.kind}` : 'engine.error.refresh';
+    if (find(id)) patchParcel(id, { refreshing: false, error: key, ...(p.demo ? {} : { lastCheckedAt: checkedAt }) });
+    emit({ type: 'error', message: key });
     return;
   }
   const cur = find(id);
@@ -149,7 +174,7 @@ async function doRefresh(id: string): Promise<void> {
   const first = !cur.snapshot;
   const known = new Set(cur.snapshot?.checkpoints.map((c) => c.id));
   const fresh = first ? [] : snap.checkpoints.filter((c) => !known.has(c.id));
-  const updated: Parcel = { ...cur, snapshot: snap, unread: cur.unread + fresh.length, error: undefined, refreshing: false };
+  const updated: Parcel = { ...cur, snapshot: snap, unread: cur.unread + fresh.length, error: undefined, refreshing: false, ...(cur.demo ? {} : { lastCheckedAt: checkedAt }) };
   setState({ parcels: state.parcels.map((x) => (x.id === id ? updated : x)) });
   if (first && snap.status === 'delivered') deliveredNotified.add(id);
   if (fresh.length) {
@@ -181,14 +206,21 @@ function refreshOne(id: string): Promise<void> {
 
 let allRun: Promise<void> | null = null;
 let allAgain = false;
-function refreshAllSequential(): Promise<void> {
+let allForce = false;
+/** Refresh due parcels one at a time. `force` = user asked (live parcels still keep a 30 s gap). `only` filters. */
+function refreshAllSequential(force = false, only?: (p: Parcel) => boolean): Promise<void> {
+  if (force) allForce = true;
   if (allRun) { allAgain = true; return allRun; }
   allRun = (async () => {
     await null; // never finish synchronously: `finally` must run after the assignment
     try {
       do {
         allAgain = false;
-        for (const p of state.parcels.filter((x) => !x.archived)) await refreshOne(p.id);
+        const f = allForce; allForce = false;
+        for (const p of state.parcels.filter((x) => !x.archived && (!only || only(x)))) {
+          const cur = find(p.id);
+          if (cur && liveDue(cur, f)) await refreshOne(p.id);
+        }
       } while (allAgain);
     } finally {
       allRun = null;
@@ -211,7 +243,7 @@ export const actions = {
    * DUPLICATES: if the (normalized) number is already tracked, the existing parcel is returned (un-archived)
    * and nothing is created — check `findByTrackingNumber()` first if the UI wants to say so.
    */
-  async addParcel(input: AddParcelInput): Promise<Parcel> {
+  async addParcel(input: AddParcelInput, opts?: { /** internal/tests: simulated parcel on the demo clock */ demo?: boolean }): Promise<Parcel> {
     const v = validateTrackingNumber(input.trackingNumber);
     if (!v.ok) throw new InvalidTrackingNumberError(v.reason);
     const trackingNumber = normalizeTrackingNumber(input.trackingNumber);
@@ -228,7 +260,8 @@ export const actions = {
       id: uid(), trackingNumber, carrierId,
       nickname: input.nickname?.trim() || `${carrierName(carrierId, locale)} ${trackingNumber.slice(-4)}`,
       character: input.character ?? (def === 'auto' ? autoCharacter(getCarrier(carrierId)) : def),
-      createdAt: clock.now().toISOString(), archived: false, snapshot: null, unread: 0,
+      createdAt: (opts?.demo ? clock.now() : new Date()).toISOString(), archived: false, snapshot: null, unread: 0,
+      ...(opts?.demo ? { demo: true } : {}),
     };
     setState({ parcels: [parcel, ...state.parcels] });
     await refreshOne(parcel.id);
@@ -250,9 +283,52 @@ export const actions = {
     }
     patchParcel(id, clean);
   },
-  async refresh(id: string) { await refreshOne(id); },
-  /** Refresh every non-archived parcel, one at a time. Concurrent calls coalesce into one follow-up pass. */
-  async refreshAll() { await refreshAllSequential(); },
+  /** Switch a parcel to another carrier (wrong guess) and look it up again from scratch. */
+  async changeCarrier(id: string, carrierId: string) {
+    const p = find(id);
+    if (!p || !getCarrier(carrierId) || p.carrierId === carrierId) return;
+    setState({
+      parcels: state.parcels.map((x) => (x.id === id ? { ...x, carrierId, snapshot: null, error: undefined, lastCheckedAt: undefined, unread: 0, lastSeenCheckpointId: undefined } : x)),
+      inbox: state.inbox.filter((i) => i.parcelId !== id),
+    });
+    await refreshOne(id);
+  },
+  /** User-requested refresh of one parcel (live parcels: at most every 30 s). */
+  async refresh(id: string) {
+    const p = find(id);
+    if (p && !liveDue(p, true)) return;
+    await refreshOne(id);
+  },
+  /** User-requested refresh of every non-archived parcel, one at a time. Concurrent calls coalesce. */
+  async refreshAll() { await refreshAllSequential(true); },
+  /**
+   * Add a parcel with tracker.delivery's test carrier (a fresh number that is really "in transit" on their
+   * servers). Lets the user check that live tracking works without a real tracking number.
+   */
+  async addTestParcel(): Promise<Parcel> {
+    const trackingNumber = dummyTrackingNumber();
+    const existing = state.parcels.find((p) => p.carrierId === 'dev.track.dummy' && p.trackingNumber === trackingNumber);
+    if (existing) return existing;
+    const parcel: Parcel = {
+      id: uid(), trackingNumber, carrierId: 'dev.track.dummy',
+      nickname: state.settings.locale === 'ko' ? '연결 테스트 택배' : 'Connection test parcel',
+      character: 'bunny', createdAt: new Date().toISOString(), archived: false, snapshot: null, unread: 0,
+    };
+    setState({ parcels: [parcel, ...state.parcels] });
+    await refreshOne(parcel.id);
+    const added = find(parcel.id) ?? parcel;
+    emit({ type: 'parcel-added', parcel: added });
+    return added;
+  },
+  /** Check that the live tracking service answers (uses the test carrier). Resolves 'ok' or an error kind. */
+  async testLiveConnection(): Promise<'ok' | LiveTrackingError['kind']> {
+    try {
+      const s = await trackLive({ carrierId: 'dev.track.dummy', trackingNumber: dummyTrackingNumber() }, { apiKey: state.settings.trackerApiKey });
+      return s.liveStatus === 'ok' || s.liveStatus === 'not_found' ? 'ok' : 'server';
+    } catch (e) {
+      return e instanceof LiveTrackingError ? e.kind : 'network';
+    }
+  },
   /** Detail screen opened: clear unread for this parcel (no-op when nothing changes). */
   markSeen(id: string) {
     const p = find(id);
@@ -288,6 +364,8 @@ export const actions = {
     }
     if (patch.refreshIntervalSec !== undefined && !(patch.refreshIntervalSec >= 2)) next.refreshIntervalSec = state.settings.refreshIntervalSec;
     if (patch.locale && patch.locale !== state.settings.locale) setCurrentLocale(patch.locale);
+    if (patch.liveRefreshMin !== undefined && !(patch.liveRefreshMin >= 1)) next.liveRefreshMin = state.settings.liveRefreshMin;
+    if (patch.trackerApiKey !== undefined) { next.trackerApiKey = patch.trackerApiKey.trim() || undefined; setLiveApiKey(next.trackerApiKey); }
     setState({ settings: next });
     if (patch.refreshIntervalSec !== undefined) reschedulePolling();
   },
@@ -319,7 +397,7 @@ export const actions = {
   async fastForward(hours: number) {
     clock.advance(hours);
     schedulePersist();
-    await actions.refreshAll();
+    await refreshAllSequential(true, (p) => !!p.demo); // only demo parcels live on the simulation clock
   },
   /** Wipe everything (parcels, inbox, settings, clock) and clear storage. */
   resetAll() {
@@ -400,6 +478,28 @@ export function useSimNow(intervalMs = 1000): Date {
 /** Non-hook access to sim time. */
 export function simNow(): Date { return clock.now(); }
 
+export interface Clocks { sim: Date; real: Date }
+/** Both clocks, re-rendering every `intervalMs` and on every store change. Pair with `nowFor(parcel, clocks)`. */
+export function useClocks(intervalMs = 1000): Clocks {
+  const read = (): Clocks => ({ sim: clock.now(), real: new Date() });
+  const [clocks, setClocks] = useState(read);
+  useEffect(() => {
+    const tick = () => setClocks(read());
+    const t = setInterval(tick, intervalMs);
+    listeners.add(tick);
+    return () => { clearInterval(t); listeners.delete(tick); };
+  }, [intervalMs]);
+  return clocks;
+}
+/** The "now" that applies to a parcel: simulation time for demo parcels, wall-clock time for real ones. */
+export function nowFor(p: Pick<Parcel, 'demo'> | undefined, clocks: Clocks): Date {
+  return p?.demo ? clocks.sim : clocks.real;
+}
+/** Hook form of nowFor for screens about one parcel. */
+export function useNowFor(p: Pick<Parcel, 'demo'> | undefined, intervalMs = 1000): Date {
+  return nowFor(p, useClocks(intervalMs));
+}
+
 // ───────────────────────── polling ─────────────────────────
 
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -412,7 +512,7 @@ function schedulePoll() {
   if (!started) return;
   pollTimer = setTimeout(async () => {
     pollTimer = undefined;
-    if (!isHidden()) await actions.refreshAll();
+    if (!isHidden()) await refreshAllSequential(false);
     schedulePoll();
   }, Math.max(2, state.settings.refreshIntervalSec) * 1000);
 }
@@ -423,7 +523,7 @@ function onWake() {
   const t = Date.now();
   if (t - lastWake < 1500) return; // focus + visibilitychange fire together
   lastWake = t;
-  void actions.refreshAll();
+  void refreshAllSequential(false);
   schedulePoll();
 }
 const onPageHide = () => persistNow();
@@ -449,7 +549,7 @@ export function startStore(): () => void {
     window.addEventListener('pagehide', onPageHide);
   }
   lastWake = Date.now();
-  void actions.refreshAll();
+  void refreshAllSequential(false);
   schedulePoll();
   return stop;
 }

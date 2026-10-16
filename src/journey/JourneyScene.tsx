@@ -10,7 +10,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import type { CharacterKind, Parcel, RouteStop, TrackingSnapshot, TransportMode } from '@/types';
 import { Character } from '@/characters';
 import { moodFor } from '@/engine';
-import { useReducedMotion, useSimNow } from '@/store';
+import { useNowFor, useReducedMotion } from '@/store';
 import { useT } from '@/i18n/useT';
 import {
   buildLut, easeInOutCubic, layoutScene, lengthAtK, pointAtLength, stopAxisPosition, type Pt, type SceneLayout,
@@ -81,7 +81,7 @@ function hillsPath(width: number, base: number, amp: number, period: number, pha
 export const JourneyScene = memo(function JourneyScene({ parcel, snapshot, line, next, description }: JourneySceneProps) {
   const { t, lt } = useT();
   const reduced = useReducedMotion();
-  const now = useSimNow(15000);
+  const now = useNowFor(parcel, 15000);
   const hour = now.getHours() + now.getMinutes() / 60;
   const phase = skyPhase(hour);
 

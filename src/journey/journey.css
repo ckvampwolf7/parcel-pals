@@ -206,7 +206,7 @@
 
 /* ───────────── actions row ───────────── */
 .jr-actions { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4) 0 var(--sp-5); }
-.jr-updated { flex: 1; min-width: 0; font-size: var(--fs-xs); color: var(--c-ink-2); }
+.jr-updated { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--c-ink-2); }
 .jr-chipbtn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 var(--sp-3);
   border-radius: var(--r-full); background: var(--c-surface); color: var(--c-ink);
@@ -298,6 +298,7 @@
 .jr-tl__item.is-latest .jr-tl__dot { width: 24px; height: 24px; margin: 0 0 0 2px; box-shadow: 0 0 0 3px var(--c-surface), 0 0 0 7px var(--jr-tone-soft); }
 .jr-tl__line { font-family: var(--font-display); font-size: var(--fs-md); line-height: 1.4; color: var(--c-ink); }
 .jr-tl__raw { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: var(--r-sm); background: var(--c-surface-2); font-size: var(--fs-sm); color: var(--c-ink-2); }
+.jr-tl__detail { margin-top: 4px; font-size: var(--fs-sm); line-height: 1.45; color: var(--c-ink-2); }
 .jr-tl__meta { margin-top: 2px; font-size: var(--fs-xs); color: var(--c-ink-2); }
 .jr-tl__new {
   display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: var(--r-full); vertical-align: 2px;
@@ -363,3 +364,19 @@
 @keyframes jr-pop { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
 @keyframes jr-stripes { to { background-position: 14px 0; } }
 @keyframes jr-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ───── Live-data status card (real parcels) — lead ───── */
+.jr-live { border: 2px dashed var(--c-line); }
+.jr-live--invalid, .jr-live--not_found { border-color: color-mix(in srgb, var(--c-tone-warning) 45%, var(--c-line)); }
+.jr-live .jr-card__title { display: flex; align-items: center; gap: var(--sp-2); }
+.jr-live__body { color: var(--c-ink-2); line-height: 1.55; }
+.jr-live__quote { margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--c-surface-2); font-size: var(--fs-sm); }
+.jr-live__alts { margin-top: var(--sp-3); }
+.jr-live__hint { font-size: var(--fs-sm); color: var(--c-ink-2); margin-bottom: var(--sp-2); }
+.jr-live__chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.jr-live__chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--sp-4); border-radius: var(--r-full); background: var(--c-primary-soft); color: var(--c-primary-strong); font-weight: 600; }
+.jr-live__chip:disabled { opacity: .6; }
+.jr-live__link { display: inline-flex; align-items: center; gap: 6px; margin-top: var(--sp-3); color: var(--c-primary-strong); font-weight: 600; min-height: 44px; }
+.jr-livebadge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--r-full); background: var(--c-tone-success-soft); color: var(--c-tone-success-ink); font-size: var(--fs-xs); font-weight: 700; }
+.jr-livebadge__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-tone-success); animation: jr-live-pulse 2s ease-in-out infinite; }
+@keyframes jr-live-pulse { 50% { opacity: .35; } }

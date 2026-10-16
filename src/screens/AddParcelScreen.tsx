@@ -1,7 +1,7 @@
 /** Add parcel (UI team): smart paste, live validation, ranked carrier candidates, nickname, pal picker. */
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { Carrier, CarrierMatch, CharacterKind } from '@/types';
-import { CARRIERS, autoCharacter, detectCarriers, getCarrier, normalizeTrackingNumber } from '@/engine';
+import { CARRIERS, autoCharacter, detectCarriers, getCarrier, normalizeTrackingNumber, supportsLiveTracking } from '@/engine';
 import { actions, useParcels, useSettings } from '@/store';
 import { Character, CharacterPicker } from '@/characters';
 import { requestNotificationPermission } from '@/pwa';
@@ -136,8 +136,9 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
     else { palSays = t('ui.add.carrier.unknown'); palMood = 'worried'; }
   }
 
-  const domestic = CARRIERS.filter((c) => c.scope === 'domestic');
-  const intl = CARRIERS.filter((c) => c.scope !== 'domestic');
+  const pickable = CARRIERS.filter((c) => !c.id.startsWith('dev.'));
+  const domestic = pickable.filter((c) => c.scope === 'domestic');
+  const intl = pickable.filter((c) => c.scope !== 'domestic');
   const examples = [1, 2, 3, 4].map((i) => t(`ui.add.nickname.ex${i}`));
 
   return (
@@ -220,6 +221,12 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
               <Icon name="chevronDown" size={18} />
             </span>
           </label>
+          {carrier && !supportsLiveTracking(carrier.id) && (
+            <p className="add-unsupported" data-testid="add-unsupported">
+              <Icon name="info" size={18} />
+              <span>{t('ui.add.unsupported', { carrier: locale === 'ko' ? carrier.nameKo : carrier.nameEn })}</span>
+            </p>
+          )}
         </section>
 
         <section className="add-card">

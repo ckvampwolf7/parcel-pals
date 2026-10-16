@@ -38,6 +38,8 @@ export function sanitizeSettings(raw: unknown, defaults: Settings): Settings {
   if (raw.theme === 'system' || raw.theme === 'light' || raw.theme === 'dark') s.theme = raw.theme;
   if (raw.reduceMotion === 'system' || raw.reduceMotion === 'on' || raw.reduceMotion === 'off') s.reduceMotion = raw.reduceMotion;
   if (typeof raw.onboarded === 'boolean') s.onboarded = raw.onboarded;
+  if (typeof raw.liveRefreshMin === 'number' && Number.isFinite(raw.liveRefreshMin) && raw.liveRefreshMin >= 1 && raw.liveRefreshMin <= 1440) s.liveRefreshMin = raw.liveRefreshMin;
+  if (typeof raw.trackerApiKey === 'string' && raw.trackerApiKey.trim()) s.trackerApiKey = raw.trackerApiKey.trim();
   return s;
 }
 
@@ -75,6 +77,7 @@ export function sanitizeParcel(raw: unknown): Parcel | null {
   if (str(raw.lastSeenCheckpointId)) p.lastSeenCheckpointId = raw.lastSeenCheckpointId;
   if (str(raw.error)) p.error = raw.error;
   if (raw.demo === true) p.demo = true;
+  if (isIso(raw.lastCheckedAt)) p.lastCheckedAt = raw.lastCheckedAt;
   return p; // `refreshing` is never restored
 }
 

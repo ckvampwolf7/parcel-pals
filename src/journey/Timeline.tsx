@@ -91,6 +91,7 @@ export function Timeline({ parcel, checkpoints, newIds, now }: { parcel: Parcel;
                         {raw && (
                           <p className="jr-tl__raw"><span className="sr-only">{t('journey.tl.rawLabel')}: </span>“{lt(c.message)}”</p>
                         )}
+                        {c.detail && <p className="jr-tl__detail">{c.detail}</p>}
                         <p className="jr-tl__meta">
                           <time dateTime={c.time}>{fmtTime(c.time, locale)}</time>
                           {lt(c.location) && <><span aria-hidden="true"> · </span>{lt(c.location)}</>}

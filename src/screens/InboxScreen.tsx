@@ -1,7 +1,7 @@
 /** Inbox (UI team): the pals' notes about every new checkpoint, grouped by day. */
 import type { InboxItem, Parcel } from '@/types';
 import { formatRelative, moodFor } from '@/engine';
-import { actions, useInbox, useParcels, useSimNow } from '@/store';
+import { actions, nowFor, useClocks, useInbox, useParcels } from '@/store';
 import { href, navigate } from '@/router';
 import { useT } from '@/i18n/useT';
 import { Button, StatusChip } from '@/components/ui';
@@ -15,7 +15,8 @@ export default function InboxScreen() {
   const { t, lt, locale } = useT();
   const items = useInbox();
   const parcels = useParcels({ includeArchived: true });
-  const now = useSimNow(15000);
+  const clocks = useClocks(15000);
+  const now = clocks.real;
   const byId = new Map<string, Parcel>(parcels.map((p) => [p.id, p]));
   const unread = items.filter((i) => !i.read).length;
 
@@ -74,7 +75,7 @@ export default function InboxScreen() {
                         <span className="inbox-item__main">
                           <span className="inbox-item__top">
                             <span className="inbox-item__name">{p?.nickname ?? t('ui.inbox.removed')}</span>
-                            <span className="inbox-item__time">{formatRelative(it.time, locale, now)}</span>
+                            <span className="inbox-item__time">{formatRelative(it.time, locale, nowFor(byId.get(it.parcelId), clocks))}</span>
                           </span>
                           <span className="inbox-item__text">{lt(it.text)}</span>
                           <span className="inbox-item__chip"><StatusChip status={it.status} /></span>

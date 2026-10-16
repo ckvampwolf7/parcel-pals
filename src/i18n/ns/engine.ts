@@ -30,6 +30,13 @@ const ko: Tree = {
     invalid_chars: '숫자와 영문으로 된 운송장 번호를 넣어 주세요.',
     duplicate: '이미 추가된 택배예요.',
     refresh: '택배 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
+    live: {
+      network: '인터넷 연결을 확인해 주세요. 연결되면 다시 조회할게요.',
+      timeout: '택배사 응답이 늦어요. 잠시 후 다시 조회할게요.',
+      server: '조회 서비스에 잠깐 문제가 있어요. 마지막으로 받은 정보를 보여드릴게요.',
+      rate_limit: '조회가 너무 잦아서 잠시 쉬어요. 몇 분 뒤 다시 확인할게요.',
+      auth: 'API 키가 맞지 않거나 만료됐어요. 설정에서 키를 확인해 주세요. (무료 조회로 대신 확인 중)',
+    },
   },
   // ── date & time pieces
   wd: ['일', '월', '화', '수', '목', '금', '토'],
@@ -306,6 +313,13 @@ const en: Tree = {
     invalid_chars: 'Tracking numbers use letters and digits only.',
     duplicate: 'You already added this parcel.',
     refresh: "Couldn't load tracking info. Please try again shortly.",
+    live: {
+      network: "You seem to be offline. I'll check again when you're back online.",
+      timeout: "The carrier is slow to answer. I'll try again shortly.",
+      server: "The tracking service is having trouble. Showing the last info I got.",
+      rate_limit: "Too many lookups for now. I'll check again in a few minutes.",
+      auth: 'Your API key was rejected or has expired. Check it in Settings. (Using the free lookup meanwhile.)',
+    },
   },
   wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   wdFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],

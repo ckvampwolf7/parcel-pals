@@ -1,7 +1,7 @@
 /** Home (UI team): greeting + summary, hero card, active/delivered lists, refresh-all, add button, empty state. */
 import { useId, useState } from 'react';
 import type { Parcel } from '@/types';
-import { actions, subscribe, useParcels, useSimNow } from '@/store';
+import { actions, nowFor, subscribe, useClocks, useParcels, type Clocks } from '@/store';
 import { Character } from '@/characters';
 import { useInstallPrompt } from '@/pwa';
 import { href } from '@/router';
@@ -21,10 +21,10 @@ function greetingKey(h: number) {
   return 'night';
 }
 
-function useSummary(parcels: Parcel[], now: Date) {
+function useSummary(parcels: Parcel[], clocks: Clocks) {
   const { t } = useT();
   const active = parcels.filter((p) => !isDelivered(p));
-  const today = active.filter((p) => arrivesToday(p, now)).length;
+  const today = active.filter((p) => arrivesToday(p, nowFor(p, clocks))).length;
   const pickup = active.filter((p) => p.snapshot?.status === 'available_for_pickup').length;
   const problem = active.filter((p) => ['exception', 'attempt_fail'].includes(p.snapshot?.status ?? '') || p.snapshot?.delayed).length;
   const moving = Math.max(0, active.length - today - pickup - problem);
@@ -73,8 +73,8 @@ function PalTrio() {
 export default function HomeScreen() {
   const { t } = useT();
   const parcels = useParcels();
-  const now = useSimNow(5000);
-  const summary = useSummary(parcels, now);
+  const clocks = useClocks(5000);
+  const summary = useSummary(parcels, clocks);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [showDone, setShowDone] = useState(true);
@@ -135,8 +135,8 @@ export default function HomeScreen() {
           {hero ? (
             <section className="home-sec" aria-label={t('ui.home.section.active')}>
               <SectionHeader title={t('ui.home.section.active')} count={active.length + 1} />
-              <HeroCard parcel={hero} now={now} />
-              {active.length > 0 && <ul className="home-list">{active.map((p) => <li key={p.id}><ParcelCard parcel={p} now={now} /></li>)}</ul>}
+              <HeroCard parcel={hero} now={nowFor(hero, clocks)} />
+              {active.length > 0 && <ul className="home-list">{active.map((p) => <li key={p.id}><ParcelCard parcel={p} now={nowFor(p, clocks)} /></li>)}</ul>}
             </section>
           ) : (
             <>
@@ -147,7 +147,7 @@ export default function HomeScreen() {
               {active.length > 0 && (
                 <section className="home-sec" aria-label={t('ui.home.section.active')}>
                   <SectionHeader title={t('ui.home.section.active')} count={active.length} />
-                  <ul className="home-list">{active.map((p) => <li key={p.id}><ParcelCard parcel={p} now={now} /></li>)}</ul>
+                  <ul className="home-list">{active.map((p) => <li key={p.id}><ParcelCard parcel={p} now={nowFor(p, clocks)} /></li>)}</ul>
                 </section>
               )}
             </>
@@ -155,7 +155,7 @@ export default function HomeScreen() {
           {delivered.length > 0 && (
             <section className="home-sec" aria-label={t('ui.home.section.delivered')}>
               <SectionHeader title={t('ui.home.section.delivered')} count={delivered.length} open={showDone} onToggle={() => setShowDone((v) => !v)} controls={doneId} />
-              <ul className="home-list" id={doneId} hidden={!showDone}>{showDone && delivered.map((p) => <li key={p.id}><ParcelCard parcel={p} now={now} /></li>)}</ul>
+              <ul className="home-list" id={doneId} hidden={!showDone}>{showDone && delivered.map((p) => <li key={p.id}><ParcelCard parcel={p} now={nowFor(p, clocks)} /></li>)}</ul>
             </section>
           )}
           <a className="home-fab" href={href('/add')} data-testid="add-button">

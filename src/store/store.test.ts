@@ -18,7 +18,7 @@ beforeEach(() => {
   localStorage.clear();
   actions.resetAll();
   freezeClock();
-  setProvider(undefined);
+  setProvider(mockProvider); // store tests run on the simulator (live lookups are covered in engine/live)
 });
 
 describe('adding parcels', () => {
@@ -53,7 +53,7 @@ describe('refresh diffing → unread, inbox, events', () => {
   it('new checkpoints become unread + inbox items; events once per refresh; delivered once', async () => {
     const events: AppEvent[] = [];
     const off = subscribe((e) => events.push(e));
-    const p = await actions.addParcel({ trackingNumber: '640123456136', character: 'bunny' });
+    const p = await actions.addParcel({ trackingNumber: '640123456136', character: 'bunny' }, { demo: true });
     expect(events.map((e) => e.type)).toEqual(['parcel-added']);
     await actions.fastForward(3);
     let cur = getParcels()[0];
@@ -88,7 +88,7 @@ describe('refresh diffing → unread, inbox, events', () => {
     off();
   });
   it('markInboxRead lowers parcel unread counts', async () => {
-    await actions.addParcel({ trackingNumber: '640123456136' });
+    await actions.addParcel({ trackingNumber: '640123456136' }, { demo: true });
     await actions.fastForward(30);
     const before = getParcels()[0].unread;
     actions.markInboxRead([getInbox()[0].id]);
@@ -108,7 +108,7 @@ describe('refresh diffing → unread, inbox, events', () => {
         return mockProvider.track(req, now);
       },
     };
-    await actions.addParcel({ trackingNumber: '640123456136' });
+    await actions.addParcel({ trackingNumber: '640123456136' }, { demo: true });
     setProvider(slow);
     expect(getProvider().id).toBe('slow');
     await Promise.all([actions.refreshAll(), actions.refreshAll(), actions.refresh(getParcels()[0].id), actions.fastForward(5)]);
@@ -119,14 +119,14 @@ describe('refresh diffing → unread, inbox, events', () => {
   });
   it('refreshAll with no parcels does not wedge later refreshes (regression)', async () => {
     await actions.refreshAll();
-    await actions.addParcel({ trackingNumber: '640123456136' });
+    await actions.addParcel({ trackingNumber: '640123456136' }, { demo: true });
     await actions.fastForward(10);
     expect(getParcels()[0].snapshot!.updatedAt).toBe(new Date(T0 + 10 * H).toISOString());
     await actions.refresh('missing-id');
     await actions.refresh('missing-id');
   });
   it('provider errors set parcel.error and emit an error event', async () => {
-    await actions.addParcel({ trackingNumber: '640123456136' });
+    await actions.addParcel({ trackingNumber: '640123456136' }, { demo: true });
     const events: AppEvent[] = [];
     const off = subscribe((e) => events.push(e));
     setProvider({ id: 'broken', track: async () => { throw new Error('boom'); } });
@@ -239,5 +239,63 @@ describe('settings side effects', () => {
     expect(__storeTest.getClock().now().getTime()).toBe(T0 + 60e3 + 600e3);
     actions.updateSettings({ demoSpeed: -5 });
     expect(getSettings().demoSpeed).toBe(600);
+  });
+});
+
+describe('live (real) parcels', () => {
+  const liveSnap = (n: number) => ({
+    status: 'in_transit' as const, checkpoints: Array.from({ length: n }, (_, i) => ({
+      id: `cp${i}`, time: new Date(Date.now() - (n - i) * H).toISOString(), status: 'in_transit' as const,
+      location: { ko: '대전HUB', en: '대전HUB' }, message: { ko: '간선상차', en: '간선상차' },
+    })), stops: [{ id: 'o', kind: 'origin' as const, name: { ko: 'a', en: 'a' } }, { id: 'd', kind: 'destination' as const, name: { ko: 'b', en: 'b' } }],
+    progress: 0.5, currentStopIndex: 0, currentMode: 'truck' as const, updatedAt: new Date().toISOString(), source: 'live' as const, liveStatus: 'ok' as const,
+  });
+  it('uses real time, records lastCheckedAt and throttles automatic and manual lookups', async () => {
+    let calls = 0;
+    let n = 1;
+    const nows: Date[] = [];
+    setProvider({ id: 'live-fake', async track(_req, now) { calls++; nows.push(now); return liveSnap(n); } });
+    const p = await actions.addParcel({ trackingNumber: '640123456136' });
+    expect(p.demo).toBeUndefined();
+    expect(Math.abs(Date.parse(p.createdAt) - Date.now())).toBeLessThan(5000); // real time, not the frozen sim clock
+    expect(Math.abs(nows[0].getTime() - Date.now())).toBeLessThan(5000);
+    expect(p.lastCheckedAt).toBeTruthy();
+    n = 2;
+    await actions.refreshAll(); // manual, but within 30 s of the last lookup → skipped
+    await actions.refresh(p.id);
+    await actions.fastForward(10); // demo-only: must not touch real parcels
+    expect(calls).toBe(1);
+    expect(getParcels()[0].snapshot!.checkpoints).toHaveLength(1);
+    // 31 s later a manual refresh goes through and the new event becomes unread
+    const st = __storeTest.getState();
+    st.parcels[0] = { ...st.parcels[0], lastCheckedAt: new Date(Date.now() - 31_000).toISOString() };
+    await actions.refresh(p.id);
+    expect(calls).toBe(2);
+    expect(getParcels()[0].unread).toBe(1);
+  });
+  it('changeCarrier resets the parcel and looks it up again', async () => {
+    const seen: string[] = [];
+    setProvider({ id: 'live-fake', async track(req) { seen.push(req.carrierId); return liveSnap(1); } });
+    const p = await actions.addParcel({ trackingNumber: '640123456136', carrierId: 'kr.cjlogistics' });
+    await actions.changeCarrier(p.id, 'kr.hanjin');
+    expect(getParcels()[0].carrierId).toBe('kr.hanjin');
+    expect(seen).toEqual(['kr.cjlogistics', 'kr.hanjin']);
+  });
+  it('live transport errors keep the old snapshot and use a specific message', async () => {
+    setProvider({ id: 'live-fake', async track() { return liveSnap(1); } });
+    const p = await actions.addParcel({ trackingNumber: '640123456136' });
+    const { LiveTrackingError } = await import('@/engine');
+    setProvider({ id: 'down', async track() { throw new LiveTrackingError('server'); } });
+    const st = __storeTest.getState();
+    st.parcels[0] = { ...st.parcels[0], lastCheckedAt: undefined };
+    await actions.refresh(p.id);
+    expect(getParcels()[0].error).toBe('engine.error.live.server');
+    expect(getParcels()[0].snapshot!.checkpoints).toHaveLength(1);
+  });
+  it('API key setting is trimmed and cleared', () => {
+    actions.updateSettings({ trackerApiKey: '  id:secret ' });
+    expect(getSettings().trackerApiKey).toBe('id:secret');
+    actions.updateSettings({ trackerApiKey: '' });
+    expect(getSettings().trackerApiKey).toBeUndefined();
   });
 });

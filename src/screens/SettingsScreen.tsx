@@ -23,7 +23,25 @@ export default function SettingsScreen() {
   const [perm, setPerm] = useState<Perm>(readPerm);
   const [confirmReset, setConfirmReset] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState(false);
-  const ids = { locale: useId(), theme: useId(), motion: useId(), notif: useId(), notifHint: useId(), speed: useId(), pal: useId() };
+  const ids = { locale: useId(), theme: useId(), motion: useId(), notif: useId(), notifHint: useId(), speed: useId(), pal: useId(), every: useId(), key: useId() };
+  const [liveTest, setLiveTest] = useState<'idle' | 'busy' | 'ok' | 'fail'>('idle');
+  const [addingTest, setAddingTest] = useState(false);
+  const [keyDraft, setKeyDraft] = useState(s.trackerApiKey ?? '');
+  const testConnection = async () => {
+    setLiveTest('busy');
+    const r = await actions.testLiveConnection();
+    setLiveTest(r === 'ok' ? 'ok' : 'fail');
+  };
+  const addTestParcel = async () => {
+    setAddingTest(true);
+    try { const p = await actions.addTestParcel(); navigate(`/p/${p.id}`); }
+    finally { setAddingTest(false); }
+  };
+  const saveKey = () => {
+    const v = keyDraft.trim();
+    set({ trackerApiKey: v });
+    showToast({ text: v ? t('ui.settings.live.key.saved') : t('ui.settings.live.key.cleared'), tone: 'success', durationMs: 2500 });
+  };
 
   const toggleNotifications = async (on: boolean) => {
     set({ notifications: on });
@@ -79,6 +97,32 @@ export default function SettingsScreen() {
           below={<div className="settings-picker" data-testid="setting-default-character">
             <CharacterPicker value={s.defaultCharacter} onChange={(v) => set({ defaultCharacter: v })} includeAuto label={t('ui.settings.defaultPal')} />
           </div>} />
+      </RowGroup>
+
+      <RowGroup title={t('ui.settings.group.live')} footer={t('ui.settings.live.footer')}>
+        <Row icon="globe" iconColor="var(--c-tone-success)" label={t('ui.settings.live.status')} hint={t('ui.settings.live.status.hint')}
+          trailing={
+            <button type="button" className="settings-livetest" data-testid="setting-live-test" data-state={liveTest} onClick={testConnection} disabled={liveTest === 'busy'}>
+              {liveTest === 'busy' ? <Spinner size={16} /> : liveTest === 'ok' ? <Icon name="check" size={16} /> : liveTest === 'fail' ? <Icon name="alert" size={16} /> : null}
+              {t(`ui.settings.live.test.${liveTest}`)}
+            </button>
+          } />
+        <Row icon="box" iconColor="var(--c-char-bunny)" label={t('ui.settings.live.testParcel')} hint={t('ui.settings.live.testParcel.hint')}
+          onClick={addingTest ? undefined : addTestParcel} testId="add-test-parcel" trailing={addingTest ? <Spinner size={18} /> : undefined} chevron={!addingTest} />
+        <Row icon="refresh" iconColor="var(--c-primary)" label={t('ui.settings.live.every')} hint={t('ui.settings.live.every.hint')} labelId={ids.every}
+          below={<Segmented labelledBy={ids.every} value={String(s.liveRefreshMin ?? 10)} onChange={(v) => set({ liveRefreshMin: Number(v) })} options={[
+            { value: '5', label: t('ui.settings.live.every.n', { n: 5 }), testId: 'setting-live-every-5' },
+            { value: '10', label: t('ui.settings.live.every.n', { n: 10 }), testId: 'setting-live-every-10' },
+            { value: '30', label: t('ui.settings.live.every.n', { n: 30 }), testId: 'setting-live-every-30' },
+          ]} />} />
+        <Row icon="key" iconColor="var(--c-sun)" label={<label htmlFor={ids.key}>{t('ui.settings.live.key')}</label>} hint={t('ui.settings.live.key.hint')}
+          below={
+            <form className="settings-key" onSubmit={(e) => { e.preventDefault(); saveKey(); }}>
+              <input id={ids.key} data-testid="setting-api-key" type="password" autoComplete="off" spellCheck={false}
+                placeholder="CLIENT_ID:CLIENT_SECRET" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} />
+              <button type="submit" className="settings-key__save" data-testid="setting-api-key-save">{t('common.save')}</button>
+            </form>
+          } />
       </RowGroup>
 
       <RowGroup title={t('ui.settings.group.notify')} footer={notifNote ?? undefined}>

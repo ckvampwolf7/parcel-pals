@@ -78,6 +78,8 @@ export interface Checkpoint {
   status: StatusTag;
   location: LocalizedText;
   message: LocalizedText; //  carrier-style message, e.g. 간선상차 / Departed facility
+  /** Live data: the carrier's full description, e.g. "고객님의 상품을 배송할 예정입니다.(17~19시)". */
+  detail?: string;
   /** Machine event code (e.g. 'pickup', 'hub_depart', 'customs_clear'); also embedded in `id` by the mock provider. */
   code?: string;
   /** index into snapshot.stops where this happened, if known */
@@ -114,6 +116,16 @@ export interface TrackingSnapshot {
    * Present once the handoff checkpoint has happened.
    */
   handoff?: { carrierId: string; trackingNumber: string; time: string };
+  /** Where the data came from: the deterministic simulator (demo parcels) or a real carrier lookup. */
+  source?: 'simulated' | 'live';
+  /**
+   * Live lookups only. 'not_found' = the carrier has no record yet (normal for a few hours after the label is made,
+   * or the wrong carrier was picked); 'invalid' = the carrier rejected the number format (see liveMessage);
+   * 'unsupported' = no real-time lookup exists for this carrier (show its website link instead).
+   */
+  liveStatus?: 'ok' | 'not_found' | 'invalid' | 'unsupported';
+  /** Human-readable message from the carrier/API for liveStatus 'invalid' (usually Korean). */
+  liveMessage?: string;
   /** For available_for_pickup: where to collect it. */
   pickup?: { place: LocalizedText; kind: 'convenience_store' | 'locker' | 'branch' | 'post_office' };
   /** ISO time the provider produced this snapshot (simulation time for the mock provider). */
@@ -137,6 +149,8 @@ export interface Parcel {
   error?: string;
   /** true while a refresh is in flight */
   refreshing?: boolean;
+  /** Real time (ISO) of the last successful or failed live lookup — used to throttle polling. */
+  lastCheckedAt?: string;
   /** Demo/sample parcel (created by loadDemo) */
   demo?: boolean;
 }
@@ -157,6 +171,14 @@ export interface Settings {
   /** 'system' follows prefers-reduced-motion */
   reduceMotion: 'system' | 'on' | 'off';
   onboarded: boolean;
+  /** Minutes between automatic live lookups for real parcels (manual refresh is always allowed). Default 10. */
+  liveRefreshMin?: number;
+  /**
+   * Optional Delivery Tracker v2 API key "CLIENT_ID:CLIENT_SECRET" (tracker.delivery console).
+   * When set, live lookups use the official v2 API first and fall back to the free v1 API.
+   * Stored only on this device.
+   */
+  trackerApiKey?: string;
 }
 
 export interface InboxItem {

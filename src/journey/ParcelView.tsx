@@ -2,7 +2,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Parcel } from '@/types';
 import { characterLine, formatRelative, formatSnapshotEta, getCarrier } from '@/engine';
-import { actions, useSimNow } from '@/store';
+import { actions, useNowFor } from '@/store';
 import { Character } from '@/characters';
 import { IconButton, StatusChip, TopBar } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -11,6 +11,7 @@ import { navigate } from '@/router';
 import { useT } from '@/i18n/useT';
 import { JourneyScene, sceneStops } from './JourneyScene';
 import { CarrierCard, EtaCard, PickupCard, WhereCard } from './InfoCards';
+import { LiveStatusCard } from './LiveStatusCard';
 import { Timeline } from './Timeline';
 import { ParcelMenu } from './ParcelMenu';
 import { describeJourney } from './describe';
@@ -41,7 +42,7 @@ function useNewIds(parcel: Parcel): Set<string> {
 
 export function ParcelView({ parcel }: { parcel: Parcel }) {
   const { t, lt, locale } = useT();
-  const now = useSimNow(20000);
+  const now = useNowFor(parcel, 20000);
   const [menuOpen, setMenuOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [ffBusy, setFfBusy] = useState(false);
@@ -61,8 +62,11 @@ export function ParcelView({ parcel }: { parcel: Parcel }) {
     () => (snap ? sceneStops(snap, { origin: t('journey.stop.origin'), destination: t('journey.stop.destination') }) : []),
     [snap, t],
   );
-  const line = characterLine(parcel, locale);
-  const next = nextStep(parcel, locale, now);
+  const live = !parcel.demo;
+  const liveIssue = live && snap?.liveStatus && snap.liveStatus !== 'ok' ? snap.liveStatus : undefined;
+  // Be honest in the bubble when there is no real data to talk about.
+  const line = liveIssue ? t(`journey.live.${liveIssue}.line`, { carrier: carrierName }) : characterLine(parcel, locale);
+  const next = liveIssue ? null : nextStep(parcel, locale, now);
   const description = snap ? describeJourney(parcel, snap, stops, t, lt) : '';
   const delivered = snap?.status === 'delivered';
   const deliveredAt = delivered ? [...snap.checkpoints].reverse().find((c) => c.status === 'delivered')?.time : undefined;
@@ -131,23 +135,31 @@ export function ParcelView({ parcel }: { parcel: Parcel }) {
 
         <div className="jr-actions">
           <span className="jr-updated">
-            {snap && t('journey.updated', { ago: formatRelative(snap.updatedAt, locale, now) })}
+            {live && <span className="jr-livebadge" data-testid="live-badge"><span className="jr-livebadge__dot" aria-hidden="true" />{t('journey.live.badge')}</span>}
+            {live
+              ? (parcel.lastCheckedAt || snap) && t('journey.live.checked', { ago: formatRelative(parcel.lastCheckedAt ?? snap!.updatedAt, locale, now) })
+              : snap && t('journey.updated', { ago: formatRelative(snap.updatedAt, locale, now) })}
           </span>
-          <button type="button" className="jr-chipbtn jr-chipbtn--demo" data-testid="fast-forward" onClick={fastForward} disabled={ffBusy} aria-describedby={ffHint}>
-            <span aria-hidden="true">⏩</span> {t('journey.ff')}
-            <span className="jr-chipbtn__tag">{t('journey.demoTag')}</span>
-          </button>
-          <span id={ffHint} className="sr-only">{t('journey.ffLabel')}</span>
+          {!live && (
+            <>
+              <button type="button" className="jr-chipbtn jr-chipbtn--demo" data-testid="fast-forward" onClick={fastForward} disabled={ffBusy} aria-describedby={ffHint}>
+                <span aria-hidden="true">⏩</span> {t('journey.ff')}
+                <span className="jr-chipbtn__tag">{t('journey.demoTag')}</span>
+              </button>
+              <span id={ffHint} className="sr-only">{t('journey.ffLabel')}</span>
+            </>
+          )}
           <button type="button" className="jr-chipbtn" data-testid="refresh-parcel" onClick={refresh} aria-busy={busy} aria-label={busy ? t('journey.refreshing') : t('journey.refresh')}>
             <Icon name="refresh" size={18} className={busy ? 'jr-spin' : undefined} />
           </button>
         </div>
         {parcel.error && (
-          <p className="jr-note jr-note--warning" role="alert"><Icon name="alert" size={20} /><span>{t('journey.refreshError')}</span></p>
+          <p className="jr-note jr-note--warning" role="alert"><Icon name="alert" size={20} /><span>{parcel.error.startsWith('engine.error.live.') ? t(parcel.error) : t('journey.refreshError')}</span></p>
         )}
 
         {snap ? (
           <>
+            {liveIssue && <LiveStatusCard parcel={parcel} snapshot={snap} />}
             {snap.status === 'available_for_pickup' && <PickupCard snapshot={snap} />}
             <WhereCard snapshot={snap} stops={stops} />
             <EtaCard snapshot={snap} now={now} />

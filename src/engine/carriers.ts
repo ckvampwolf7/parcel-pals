@@ -41,6 +41,8 @@ export const CARRIERS: Carrier[] = [
     trackingUrl: 'https://track.4px.com/#/result/0/{number}' },
   { id: 'cn.sf', nameKo: 'SF익스프레스', nameEn: 'SF Express', country: 'CN', scope: 'international', color: '#222222',
     trackingUrl: 'https://www.sf-express.com/we/ow/chn/en/waybill/waybill-detail/{number}' },
+  // Test carrier from tracker.delivery (hidden from pickers; added via Settings → "연결 테스트")
+  { id: 'dev.track.dummy', nameKo: '테스트 택배사', nameEn: 'Test carrier', country: 'INTL', scope: 'domestic', color: '#8f8baa' },
   { id: 'us.ups', nameKo: 'UPS', nameEn: 'UPS', country: 'US', scope: 'international', color: '#5a3a1e',
     trackingUrl: 'https://www.ups.com/track?tracknum={number}' },
   { id: 'us.fedex', nameKo: '페덱스', nameEn: 'FedEx', country: 'US', scope: 'international', color: '#4d148c',

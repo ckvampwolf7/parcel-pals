@@ -14,3 +14,12 @@
 .settings-select select:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--c-primary), 0 0 0 4px var(--c-primary-soft); }
 .settings-select svg { position: absolute; right: var(--sp-3); pointer-events: none; color: var(--c-ink-2); }
 .settings-version { font-family: var(--font-display); font-size: var(--fs-md); color: var(--c-ink-2); }
+
+/* ───── Live tracking section — lead ───── */
+.settings-livetest { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--sp-3); border-radius: var(--r-full); background: var(--c-primary-soft); color: var(--c-primary-strong); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
+.settings-livetest[data-state='ok'] { background: var(--c-tone-success-soft); color: var(--c-tone-success-ink); }
+.settings-livetest[data-state='fail'] { background: var(--c-tone-danger-soft); color: var(--c-tone-danger-ink); }
+.settings-key { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); }
+.settings-key input { flex: 1; min-width: 0; min-height: 44px; padding: 0 var(--sp-3); border-radius: var(--r-sm); border: 2px solid var(--c-line); background: var(--c-surface-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-sm); }
+.settings-key input:focus { outline: none; border-color: var(--c-primary); }
+.settings-key__save { min-height: 44px; padding: 0 var(--sp-4); border-radius: var(--r-sm); background: var(--c-primary-strong); color: var(--c-on-primary); font-weight: 700; }

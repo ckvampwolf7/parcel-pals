@@ -14,7 +14,7 @@ export { extractFromText, extractShopHints, carriersMentioned, type ExtractedNum
 
 // providers
 export {
-  mockProvider, getProvider, setProvider, createTrackerDeliveryProvider, mapTrackerDeliveryResponse,
+  mockProvider, liveProvider, setLiveApiKey, getProviderFor, getProvider, setProvider, createTrackerDeliveryProvider, mapTrackerDeliveryResponse,
   type TrackRequest, type TrackingProvider, type TrackerDeliveryOptions,
 } from './providers';
 export { classifyCarrierText, statusFromCarrierText, type JargonTerm } from './statusText';
@@ -41,3 +41,8 @@ import { t } from '@/i18n';
 export function validationMessage(reason: 'empty' | 'too_short' | 'too_long' | 'invalid_chars' | 'duplicate', locale: Locale): string {
   return t(`engine.error.${reason}`, undefined, locale);
 }
+
+// live tracking (real carrier data via tracker.delivery)
+export { trackLive, trackV1, trackV2, v1ToEvents, v2ToEvents, LiveTrackingError, type LiveRequest, type LiveOptions } from './live/client';
+export { buildLiveSnapshot, emptyLiveSnapshot, liveEventStatus, type LiveEvent } from './live/buildSnapshot';
+export { liveCarrierId, supportsLiveTracking, dummyTrackingNumber } from './live/carrierMap';
