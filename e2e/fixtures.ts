@@ -12,7 +12,7 @@ interface PP {
     resetAll(): void;
     updateSettings(patch: Partial<Settings>): void;
     loadDemo(): Promise<void>;
-    addParcel(input: AddParcelInput): Promise<Parcel>;
+    addParcel(input: AddParcelInput, opts?: { demo?: boolean }): Promise<Parcel>;
     fastForward(hours: number): Promise<void>;
   };
   simNow(): Date;
@@ -29,9 +29,27 @@ export const TEXT = {
   notFound: /404|찾을 수 없|없는 페이지|길을 잃|not found|lost/i,
 };
 
+/**
+ * Fake tracker.delivery (hermetic e2e): every test gets a deterministic in-transit trace for any number,
+ * unless the test installs its own route (later routes win). Shape = the documented v1 response.
+ */
+export const FAKE_TRACE = {
+  carrier: { id: 'kr.cjlogistics', name: 'CJ대한통운' },
+  progresses: [
+    { time: '2026-10-15T15:26:13+09:00', status: { id: 'at_pickup', text: '집화처리' }, location: { name: '경기고양신삼송' }, description: '보내시는 고객님으로부터 상품을 인수받았습니다' },
+    { time: '2026-10-15T17:15:37+09:00', status: { id: 'in_transit', text: 'SM입고' }, location: { name: '덕양AMP' }, description: '배송지역으로 상품이 이동중입니다.' },
+    { time: '2026-10-16T06:28:42+09:00', status: { id: 'in_transit', text: '간선상차' }, location: { name: '대전HUB' }, description: '배송지역으로 상품이 이동중입니다.' },
+  ],
+  state: { id: 'in_transit', text: '이동중' },
+};
+export const fulfillJson = (status: number, body: unknown) => ({
+  status, body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
+});
+
 export const test = base.extend<{ pageErrors: string[] }>({
   pageErrors: [
     async ({ page }, use, testInfo) => {
+      await page.context().route('https://apis.tracker.delivery/**', (route) => route.fulfill(fulfillJson(200, FAKE_TRACE)));
       const pageErrors: string[] = [];
       const consoleErrors: string[] = [];
       page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -86,7 +104,8 @@ export async function setup(page: Page, opts: SetupOptions = {}) {
 
 /** Setup shortcut: add a parcel through the store, return its id. */
 export async function addParcelDirect(page: Page, input: AddParcelInput): Promise<string> {
-  return page.evaluate(async (inp) => (await window.__pp!.actions.addParcel(inp)).id, input);
+  // Setup shortcut for UI tests: a SIMULATED parcel (demo clock, fast-forward works). Real lookups: addParcelViaUi.
+  return page.evaluate(async (inp) => (await window.__pp!.actions.addParcel(inp, { demo: true })).id, input);
 }
 
 /** Add a parcel through the real Add screen. Returns the detail-route parcel id. */
