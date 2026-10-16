@@ -23,7 +23,7 @@
   /* status tones (engine.statusTone → these) : solid / soft background / ink on soft */
   --c-tone-neutral: #8f8baa;  --c-tone-neutral-soft: #f1eef6;  --c-tone-neutral-ink: #5e5a7d;
   --c-tone-info: #4c8dff;     --c-tone-info-soft: #e6f0ff;     --c-tone-info-ink: #2a5fc4;
-  --c-tone-progress: #ff9a3c; --c-tone-progress-soft: #fff0df; --c-tone-progress-ink: #b25a00;
+  --c-tone-progress: #ff9a3c; --c-tone-progress-soft: #fff0df; --c-tone-progress-ink: #a85400;
   --c-tone-success: #22b58a;  --c-tone-success-soft: #ddf6ee;  --c-tone-success-ink: #0f7a5b;
   --c-tone-warning: #f2a100;  --c-tone-warning-soft: #fff4d1;  --c-tone-warning-ink: #8a5a00;
   --c-tone-danger: #f0524a;   --c-tone-danger-soft: #ffe6e2;   --c-tone-danger-ink: #b42820;
