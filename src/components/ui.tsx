@@ -69,6 +69,9 @@ export function ProgressBar({ value, color = 'var(--c-primary)', label }: { valu
 export function Sheet({ open, onClose, title, children, testId }: { open: boolean; onClose: () => void; title: string; children: ReactNode; testId?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  // Keep the latest onClose without re-running the open effect (which would steal focus on every render).
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; });
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
@@ -76,7 +79,7 @@ export function Sheet({ open, onClose, title, children, testId }: { open: boolea
     const focusables = () => [...el.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((x) => !x.hasAttribute('disabled'));
     (focusables()[0] ?? el).focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      if (e.key === 'Escape') { e.preventDefault(); closeRef.current(); }
       if (e.key === 'Tab') {
         const f = focusables(); if (!f.length) return;
         const first = f[0], last = f[f.length - 1];
@@ -87,7 +90,7 @@ export function Sheet({ open, onClose, title, children, testId }: { open: boolea
     document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; prev?.focus?.(); };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="ui-sheet-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>

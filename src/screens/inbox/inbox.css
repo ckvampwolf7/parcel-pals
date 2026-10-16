@@ -1,0 +1,24 @@
+/* Inbox — UI team */
+.inbox { gap: var(--sp-4); }
+.inbox-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-2); padding-top: calc(var(--safe-top) + var(--sp-6)); }
+.inbox-head__sub { margin-top: 2px; color: var(--c-ink-2); font-weight: 600; font-size: var(--fs-sm); }
+.inbox-head .ui-btn { margin-right: calc(-1 * var(--sp-2)); }
+.inbox-groups { display: flex; flex-direction: column; gap: var(--sp-5); }
+.inbox-group__title { font-size: var(--fs-sm); font-weight: 800; color: var(--c-ink-2); padding: 0 var(--sp-2) var(--sp-2); }
+.inbox-list { display: flex; flex-direction: column; background: var(--c-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-soft); overflow: hidden; }
+:root[data-theme='dark'] .inbox-list { box-shadow: 0 0 0 1px var(--c-line); }
+.inbox-list > li + li { border-top: 1px solid var(--c-line); }
+.inbox-item { position: relative; display: flex; align-items: flex-start; gap: var(--sp-3); width: 100%; padding: var(--sp-4); text-align: left; transition: background-color var(--dur-fast); }
+.inbox-item:hover { background: var(--c-surface-2); }
+.inbox-item:focus-visible { outline-offset: -3px; border-radius: 0; }
+.inbox-item.is-unread { background: color-mix(in srgb, var(--c-primary-soft) 55%, var(--c-surface)); }
+.inbox-item.is-unread:hover { background: var(--c-primary-soft); }
+.inbox-item__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.inbox-item__top { display: flex; align-items: baseline; gap: var(--sp-2); padding-right: var(--sp-4); }
+.inbox-item__name { flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--c-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-item__time { flex: none; font-size: var(--fs-xs); color: var(--c-ink-2); }
+.inbox-item__text { font-family: var(--font-display); font-size: var(--fs-md); line-height: 1.45; color: var(--c-ink); }
+.inbox-item:not(.is-unread) .inbox-item__text { color: var(--c-ink-2); }
+.inbox-item__chip { margin-top: 2px; }
+.inbox-item__chip .ui-chip { font-size: var(--fs-xs); padding: 2px 8px 2px 6px; }
+.inbox-item__dot { position: absolute; top: calc(var(--sp-4) + 6px); right: var(--sp-4); width: 10px; height: 10px; border-radius: 50%; background: var(--c-coral); }

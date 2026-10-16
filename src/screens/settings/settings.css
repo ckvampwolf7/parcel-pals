@@ -1,0 +1,16 @@
+/* Settings — UI team */
+.settings { gap: var(--sp-6); }
+.settings .ui-rowgroup + .ui-rowgroup { margin-top: 0; }
+.settings-head { display: flex; align-items: flex-end; justify-content: space-between; padding-top: calc(var(--safe-top) + var(--sp-6)); }
+.settings-head__pals { display: flex; margin-right: calc(-1 * var(--sp-1)); }
+.settings-head__pals > * + * { margin-left: -10px; }
+.settings-picker { display: block; overflow-x: auto; margin: 0 calc(-1 * var(--sp-1)); padding: var(--sp-1); }
+.settings-select { position: relative; display: flex; align-items: center; }
+.settings-select select {
+  appearance: none; -webkit-appearance: none; width: 100%; height: 48px; padding: 0 44px 0 var(--sp-4);
+  border: 0; border-radius: var(--r-md); background: var(--c-surface-2); font-size: var(--fs-md); font-weight: 600; color: var(--c-ink); cursor: pointer;
+}
+:root[data-theme='dark'] .settings-select select { background: var(--c-bg); }
+.settings-select select:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--c-primary), 0 0 0 4px var(--c-primary-soft); }
+.settings-select svg { position: absolute; right: var(--sp-3); pointer-events: none; color: var(--c-ink-2); }
+.settings-version { font-family: var(--font-display); font-size: var(--fs-md); color: var(--c-ink-2); }
