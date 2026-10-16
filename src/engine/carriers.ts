@@ -184,6 +184,17 @@ export function isValidMod7(n: string): boolean {
   if (!/^\d+$/.test(n) || n.length < 2) return false;
   return Number(n.slice(0, -1)) % 7 === Number(n.slice(-1));
 }
+/**
+ * FedEx Express 12-digit check digit: weights 1,3,7 repeating from the right over the first 11 digits,
+ * sum mod 11 (10 → 0) equals the last digit. Verified on a real FedEx number (516139538183).
+ */
+export function isValidFedex12(n: string): boolean {
+  if (!/^\d{12}$/.test(n)) return false;
+  const w = [1, 3, 7];
+  let sum = 0;
+  for (let i = 0; i < 11; i++) sum += Number(n[10 - i]) * w[i % 3];
+  return (sum % 11) % 10 === Number(n[11]);
+}
 /** Append a mod-7 check digit to a numeric body. */
 export function withMod7(body: string): string {
   return body + String(Number(body) % 7);
@@ -233,7 +244,9 @@ function detectRaw(n: string): CarrierMatch[] {
         break;
       case 12:
         add('kr.cjlogistics', m7 ? 0.58 : 0.4); add('kr.hanjin', m7 ? 0.28 : 0.36); add('kr.lotte', m7 ? 0.4 : 0.26);
-        add('us.fedex', 0.1); add('kr.coupangls', 0.08); add('kr.cvsnet', 0.06); add('kr.kdexp', 0.04);
+        // FedEx check digit passes → a strong hint (still below a mod-7-valid CJ number; the Add screen also
+        // probes the top candidates live to settle it).
+        add('us.fedex', isValidFedex12(n) ? 0.5 : 0.1); add('kr.coupangls', 0.08); add('kr.cvsnet', 0.06); add('kr.kdexp', 0.04);
         break;
       case 13:
         add('kr.epost', 0.72); add('kr.daesin', 0.2); add('kr.coupangls', 0.14); add('kr.kdexp', 0.05);

@@ -1,6 +1,7 @@
 /** Add parcel (UI team): smart paste, live validation, ranked carrier candidates, nickname, pal picker. */
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { Carrier, CarrierMatch, CharacterKind } from '@/types';
+import type { ProbeResult } from '@/engine';
 import { CARRIERS, autoCharacter, detectCarriers, getCarrier, normalizeTrackingNumber, supportsLiveTracking } from '@/engine';
 import { actions, useParcels, useSettings } from '@/store';
 import { Character, CharacterPicker } from '@/characters';
@@ -78,7 +79,27 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
     return list.slice(0, 4);
   }, [number, problem, found]);
 
-  const carrierId = manual?.id ?? candidates[0]?.carrier.id ?? '';
+  // Auto-confirm: when the number fits several carriers, ask the top candidates live which one has records.
+  const [probe, setProbe] = useState<{ number: string; results: ProbeResult[] | null } | null>(null);
+  const ambiguous = candidates.length >= 2 && candidates[0].confidence < 0.9;
+  const candidateKey = candidates.map((m) => m.carrier.id).join(',');
+  useEffect(() => {
+    if (!ambiguous || !number) { setProbe(null); return; }
+    let alive = true;
+    const timer = setTimeout(() => {
+      setProbe({ number, results: null });
+      actions.probeCarriers(number, candidateKey.split(',')).then((results) => {
+        if (alive) setProbe({ number, results });
+      }).catch(() => { if (alive) setProbe(null); });
+    }, 450);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [ambiguous, number, candidateKey]);
+  const probeFor = (id: string) => (probe?.number === number ? probe.results?.find((r) => r.carrierId === id) : undefined);
+  const probing = probe?.number === number && probe.results === null;
+  const probeHit = probe?.number === number ? probe.results?.find((r) => r.result === 'found') : undefined;
+  const probeNone = probe?.number === number && !!probe.results && !probeHit;
+
+  const carrierId = manual?.id ?? probeHit?.carrierId ?? candidates[0]?.carrier.id ?? '';
   const carrier: Carrier | undefined = carrierId ? getCarrier(carrierId) : undefined;
   const palKind: CharacterKind = pal === 'auto' ? autoCharacter(carrier) : pal;
   const firstAdd = all.length === 0;
@@ -132,6 +153,9 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
   let palMood: 'idle' | 'happy' | 'waiting' | 'worried' = 'idle';
   if (number && !problem && !unparsedMessage) {
     if (manual && carrier) { palSays = t('ui.add.carrier.manual', { name: carrierName(carrier.id, locale) }); palMood = 'happy'; }
+    else if (probing) { palSays = t('ui.add.carrier.probing'); palMood = 'waiting'; }
+    else if (probeHit) { palSays = t('ui.add.carrier.probeFound', { name: carrierName(probeHit.carrierId, locale) }); palMood = 'happy'; }
+    else if (probeNone && candidates[0]) { palSays = t('ui.add.carrier.probeNone', { name: carrierName(candidates[0].carrier.id, locale) }); palMood = 'idle'; }
     else if (candidates[0]) { palSays = t('ui.add.carrier.guess', { name: carrierName(candidates[0].carrier.id, locale) }); palMood = 'happy'; }
     else { palSays = t('ui.add.carrier.unknown'); palMood = 'worried'; }
   }
@@ -192,13 +216,19 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
             <div className="add-chips" role="group" aria-label={t('ui.add.carrier.candidates')}>
               {candidates.map((m, i) => {
                 const on = m.carrier.id === carrierId;
+                const pr = probeFor(m.carrier.id);
+                const best = probeHit ? m.carrier.id === probeHit.carrierId : i === 0 && candidates.length > 1;
                 return (
                   <button key={m.carrier.id} type="button" className="add-chip" data-testid="carrier-candidate" data-carrier-id={m.carrier.id}
+                    data-probe={probing ? 'checking' : pr?.result}
                     aria-pressed={on} onClick={() => setManual({ id: m.carrier.id, via: 'chip' })}
                     style={m.carrier.color ? { ['--chip-c' as string]: m.carrier.color } : undefined}>
                     {on ? <Icon name="check" size={16} /> : <span className="add-chip__dot" aria-hidden="true" />}
                     {carrierName(m.carrier.id, locale)}
-                    {i === 0 && candidates.length > 1 && <span className="add-chip__best">{t('ui.add.carrier.best')}</span>}
+                    {probing && <Spinner size={14} />}
+                    {pr?.result === 'found' && <span className="add-chip__found">{t('ui.add.carrier.hasRecord')}</span>}
+                    {pr && pr.result !== 'found' && pr.result !== 'error' && pr.result !== 'unsupported' && <span className="add-chip__none">{t('ui.add.carrier.noRecord')}</span>}
+                    {!pr && best && <span className="add-chip__best">{t('ui.add.carrier.best')}</span>}
                   </button>
                 );
               })}

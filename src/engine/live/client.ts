@@ -130,3 +130,22 @@ export async function trackLive(req: LiveRequest, opts: LiveOptions = {}): Promi
   }
   return trackV1(req, opts);
 }
+
+export type ProbeResult = { carrierId: string; result: 'found' | 'not_found' | 'invalid' | 'unsupported' | 'error'; events: number };
+
+/**
+ * Ask several candidate carriers at once whether they know this number (ambiguous bare-digit numbers:
+ * 12 digits fit CJ, Hanjin, Lotte and FedEx). Results keep the input order.
+ */
+export async function probeCarriers(trackingNumber: string, carrierIds: string[], opts: LiveOptions = {}): Promise<ProbeResult[]> {
+  return Promise.all(carrierIds.map(async (carrierId): Promise<ProbeResult> => {
+    if (!liveCarrierId(carrierId)) return { carrierId, result: 'unsupported', events: 0 };
+    try {
+      const s = await trackLive({ carrierId, trackingNumber }, opts);
+      if (s.liveStatus === 'ok' && s.checkpoints.length > 0) return { carrierId, result: 'found', events: s.checkpoints.length };
+      return { carrierId, result: s.liveStatus === 'invalid' ? 'invalid' : s.liveStatus === 'unsupported' ? 'unsupported' : 'not_found', events: 0 };
+    } catch {
+      return { carrierId, result: 'error', events: 0 };
+    }
+  }));
+}

@@ -94,6 +94,22 @@ test.describe('live tracking', () => {
     await expect(tid(page, 'timeline-item')).toHaveCount(3);
   });
 
+  test('ambiguous number: auto-confirm asks the candidates and picks the one with records', async ({ page }) => {
+    await page.context().route('https://apis.tracker.delivery/**', (route) => {
+      const url = route.request().url();
+      if (url.includes('/kr.hanjin/')) return route.fulfill(fulfillJson(200, FAKE_TRACE));
+      return route.fulfill(fulfillJson(404, { message: 'tracking number not found.' }));
+    });
+    await setup(page, { route: '/add' });
+    await tid(page, 'tracking-input').fill('640123456781'); // 12 digits: CJ / Hanjin / Lotte / FedEx all fit
+    const hanjin = page.locator('[data-testid="carrier-candidate"][data-carrier-id="kr.hanjin"]');
+    await expect(hanjin).toHaveAttribute('data-probe', 'found');
+    await expect(hanjin).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-testid="carrier-candidate"][data-carrier-id="kr.cjlogistics"]')).toHaveAttribute('data-probe', 'not_found');
+    await tid(page, 'submit-add').click();
+    await expect(tid(page, 'timeline-item')).toHaveCount(3);
+  });
+
   test('settings: connection test and test parcel use the live service', async ({ page }) => {
     const urls: string[] = [];
     await page.context().route('https://apis.tracker.delivery/**', (route) => { urls.push(route.request().url()); return route.fulfill(fulfillJson(200, FAKE_TRACE)); });

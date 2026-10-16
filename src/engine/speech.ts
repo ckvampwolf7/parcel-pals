@@ -167,7 +167,9 @@ export function checkpointKind(cp: Checkpoint): string {
     if (c.code === 'out_for_delivery' && c.detail === 'retry') return 'out_for_delivery_retry';
     return CODE_TO_CP[c.code] ?? c.code;
   }
-  const term = classifyCarrierText(`${cp.message.ko} ${cp.message.en}`);
+  // Live data: when the status text is generic ("In transit"), the carrier's description often says more
+  // ("Arrived at FedEx location", "Departed …").
+  const term = classifyCarrierText(`${cp.message.ko} ${cp.message.en}`) ?? (cp.detail ? classifyCarrierText(cp.detail) : undefined);
   if (term) return TERM_TO_CP[term];
   return STATUS_TO_CP[cp.status] ?? 'transit';
 }

@@ -8,7 +8,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { AddParcelInput, AppEvent, Checkpoint, InboxItem, Parcel, Settings } from '@/types';
 import {
   autoCharacter, carrierName, checkpointLine, createSimClock, demoCreatedAt, demoParcelSeeds, detectCarriers, getCarrier,
-  dummyTrackingNumber, getProviderFor, LiveTrackingError, normalizeTrackingNumber, setLiveApiKey, trackLive,
+  dummyTrackingNumber, getProviderFor, LiveTrackingError, normalizeTrackingNumber, probeCarriers, setLiveApiKey, trackLive, type ProbeResult,
   validateTrackingNumber, type SimClock,
 } from '@/engine';
 import { setCurrentLocale } from '@/i18n';
@@ -319,6 +319,10 @@ export const actions = {
     const added = find(parcel.id) ?? parcel;
     emit({ type: 'parcel-added', parcel: added });
     return added;
+  },
+  /** Ask candidate carriers (in parallel) whether they have records for a number — used by the Add screen. */
+  probeCarriers(trackingNumber: string, carrierIds: string[]): Promise<ProbeResult[]> {
+    return probeCarriers(normalizeTrackingNumber(trackingNumber), carrierIds, { apiKey: state.settings.trackerApiKey });
   },
   /** Check that the live tracking service answers (uses the test carrier). Resolves 'ok' or an error kind. */
   async testLiveConnection(): Promise<'ok' | LiveTrackingError['kind']> {

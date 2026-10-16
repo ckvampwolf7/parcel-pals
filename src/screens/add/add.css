@@ -68,3 +68,8 @@
 /* lead: carrier without live lookup */
 .add-unsupported { display: flex; gap: var(--sp-2); align-items: flex-start; margin-top: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-sm); background: var(--c-tone-warning-soft); color: var(--c-tone-warning-ink); font-size: var(--fs-sm); line-height: 1.5; }
 .add-unsupported svg { flex: none; margin-top: 1px; }
+
+/* lead: live auto-confirm results on carrier chips */
+.add-chip__found { padding: 1px 7px; border-radius: var(--r-full); background: var(--c-tone-success-soft); color: var(--c-tone-success-ink); font-size: var(--fs-xs); font-weight: 800; }
+.add-chip__none { font-size: var(--fs-xs); color: var(--c-ink-2); font-weight: 600; }
+.add-chip[data-probe='not_found'], .add-chip[data-probe='invalid'] { opacity: .75; }

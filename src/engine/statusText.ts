@@ -20,7 +20,7 @@ const RULES: Array<[RegExp, JargonTerm]> = [
   [/수입\s*신고|목록\s*심사|DECLARATION/i, 'customs_declared'],
   [/통관|세관|반입|검사\s*대상|CUSTOMS/i, 'customs_in'],
   [/인계|국내\s*택배사|이관|HANDED OVER/i, 'handover'],
-  [/간선\s*상차|상차|출고|발송|이동\s*중|DEPART|출항|항공기\s*출발/i, 'depart'],
+  [/간선\s*상차|상차|출고|발송|이동\s*중|DEPART|LEFT\s+.*(FACILITY|LOCATION)|출항|항공기\s*출발/i, 'depart'],
   [/간선\s*하차|하차|입고|도착|ARRIVED|입항/i, 'arrive_hub'],
   [/집화|집하|픽업\s*완료|상품\s*인수|PICKED UP/i, 'pickup'],
   [/접수|송장\s*(등록|출력)|정보\s*수신|상품\s*준비|출고\s*요청|INFORMATION RECEIVED|LABEL/i, 'received'],

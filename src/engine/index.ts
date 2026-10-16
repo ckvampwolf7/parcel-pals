@@ -7,7 +7,7 @@
 // carriers & detection
 export {
   CARRIERS, getCarrier, carrierName, trackingUrlFor, autoCharacter, normalizeTrackingNumber, validateTrackingNumber,
-  detectCarriers, bestCarrierId, isValidS10, isValidUps, isValidMod7, s10CheckDigit, upsCheckDigit,
+  detectCarriers, bestCarrierId, isValidS10, isValidUps, isValidMod7, isValidFedex12, s10CheckDigit, upsCheckDigit,
   MIN_TRACKING_LENGTH, MAX_TRACKING_LENGTH, type TrackingValidation,
 } from './carriers';
 export { extractFromText, extractShopHints, carriersMentioned, type ExtractedNumber, type ShopHints } from './extract';
@@ -43,6 +43,6 @@ export function validationMessage(reason: 'empty' | 'too_short' | 'too_long' | '
 }
 
 // live tracking (real carrier data via tracker.delivery)
-export { trackLive, trackV1, trackV2, v1ToEvents, v2ToEvents, LiveTrackingError, type LiveRequest, type LiveOptions } from './live/client';
+export { trackLive, trackV1, trackV2, v1ToEvents, v2ToEvents, probeCarriers, LiveTrackingError, type LiveRequest, type LiveOptions, type ProbeResult } from './live/client';
 export { buildLiveSnapshot, emptyLiveSnapshot, liveEventStatus, type LiveEvent } from './live/buildSnapshot';
 export { liveCarrierId, supportsLiveTracking, dummyTrackingNumber } from './live/carrierMap';

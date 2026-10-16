@@ -133,3 +133,44 @@ describe('provider routing & carrier map', () => {
     expect(dummyTrackingNumber(new Date('2026-10-16T10:20:00Z'))).toBe('2026-10-16T21:00:00Z');
   });
 });
+
+describe('real FedEx trace (516139538183, captured 2026-10-16)', () => {
+  const FEDEX = {
+    progresses: [
+      { time: '2026-10-14T11:35:00-05:00', status: { id: 'information_received', text: 'Label created' }, location: { name: null }, description: 'Shipment information sent to FedEx' },
+      { time: '2026-10-14T14:00:00-05:00', status: { id: 'at_pickup', text: 'Picked up' }, location: { name: 'CHICAGO' }, description: 'Picked up' },
+      { time: '2026-10-14T20:29:00-05:00', status: { id: 'in_transit', text: 'In transit' }, location: { name: 'CHICAGO' }, description: 'Arrived at FedEx location' },
+      { time: '2026-10-14T21:06:18-05:00', status: { id: 'in_transit', text: 'In transit' }, location: { name: 'CHICAGO' }, description: 'Left FedEx origin facility' },
+      { time: '2026-10-15T00:47:27-05:00', status: { id: 'in_transit', text: 'Shipment exception' }, location: { name: 'CHICAGO' }, description: 'Shipment exception' },
+      { time: '2026-10-16T06:52:58-05:00', status: { id: 'in_transit', text: 'In transit' }, location: { name: 'CHICAGO' }, description: 'Departed FedEx location' },
+    ],
+  } as unknown as Parameters<typeof v1ToEvents>[0];
+  const now = new Date('2026-10-16T23:40:00Z');
+  it('maps statuses, null locations, the mid-route exception and the carrier detail', () => {
+    const s = buildLiveSnapshot(v1ToEvents(FEDEX), { carrierId: 'us.fedex', trackingNumber: '516139538183', now });
+    expect(s.status).toBe('in_transit');
+    expect(s.checkpoints.map((c) => c.status)).toEqual(['info_received', 'in_transit', 'in_transit', 'in_transit', 'exception', 'in_transit']);
+    expect(s.stops.map((x) => x.name.ko)).toEqual(['CHICAGO', '우리 집']);
+    expect(s.checkpoints[5].detail).toBe('Departed FedEx location');
+    expect(s.stale).toBe(false);
+  });
+  it('explains generic "In transit" events from the description', async () => {
+    const { explainStatus } = await import('@/engine');
+    const s = buildLiveSnapshot(v1ToEvents(FEDEX), { carrierId: 'us.fedex', trackingNumber: '516139538183', now });
+    const lines = s.checkpoints.map((c) => explainStatus(c, 'ko'));
+    expect(lines[2]).not.toBe(lines[3]); // "Arrived" vs "Left" read differently
+  });
+  it('FedEx 12-digit check digit is recognised and ranks FedEx first', async () => {
+    const { isValidFedex12, detectCarriers } = await import('@/engine');
+    expect(isValidFedex12('516139538183')).toBe(true);
+    expect(isValidFedex12('516139538184')).toBe(false);
+    expect(detectCarriers('516139538183')[0].carrier.id).toBe('us.fedex');
+  });
+  it('probeCarriers reports which candidates have records', async () => {
+    const { probeCarriers } = await import('@/engine');
+    const f = (async (url: string) => (url.includes('/us.fedex/') ? json(200, FEDEX) : url.includes('/kr.lotte/') ? json(400, { message: 'bad' }) : json(404, { message: 'nf' }))) as unknown as typeof fetch;
+    const r = await probeCarriers('516139538183', ['us.fedex', 'kr.cjlogistics', 'kr.lotte', 'us.amazon'], { fetchImpl: f, now });
+    expect(r.map((x) => x.result)).toEqual(['found', 'not_found', 'invalid', 'unsupported']);
+    expect(r[0].events).toBe(6);
+  });
+});
