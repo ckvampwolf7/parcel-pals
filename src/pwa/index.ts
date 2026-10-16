@@ -3,11 +3,9 @@
  *  - initPwa(): register the service worker (production builds only), handle updates.
  *  - initNotifications(): subscribe to store events → browser Notification when allowed & settings.notifications.
  *  - requestNotificationPermission(): called from UI (settings toggle / first add) — returns the resulting permission.
- * LEAD STUB.
+ *  - useInstallPrompt(): install button state for the UI (Android prompt / iOS manual hint).
  */
-export function initPwa(): void {}
-export function initNotifications(): () => void { return () => {}; }
-export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
-  if (typeof Notification === 'undefined') return 'unsupported';
-  return Notification.requestPermission();
-}
+export { initPwa } from './register';
+export { initNotifications, requestNotificationPermission, isQuietHours, QUIET_HOURS } from './notifications';
+export { useInstallPrompt, promptInstall } from './install';
+export type { InstallPromptState } from './install';

@@ -1,0 +1,44 @@
+{
+  "id": "./",
+  "name": "택배친구 · Parcel Pals",
+  "short_name": "택배친구",
+  "description": "귀여운 친구가 내 택배가 어디쯤 왔는지 알려주는 배송 조회 앱",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./#/",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "theme_color": "#fff8f0",
+  "background_color": "#fff8f0",
+  "categories": ["shopping", "utilities", "lifestyle"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "택배 등록",
+      "short_name": "등록",
+      "description": "새 운송장 번호 추가하기",
+      "url": "./#/add",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "알림",
+      "short_name": "알림",
+      "description": "새 배송 소식 보기",
+      "url": "./#/inbox",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  }
+}
