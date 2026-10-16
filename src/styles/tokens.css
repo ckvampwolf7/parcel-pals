@@ -1,0 +1,89 @@
+/* Parcel Pals design tokens — owned by lead. Extend in your own CSS with prefixed local vars; don't edit here. */
+:root {
+  /* surfaces */
+  --c-bg: #fff8f0;            /* warm cream app background */
+  --c-bg-deep: #fdeedd;       /* desktop backdrop / hero wash */
+  --c-surface: #ffffff;       /* cards, sheets */
+  --c-surface-2: #fff3e6;     /* subtle fills, inputs */
+  --c-line: #efe5d8;          /* hairlines, borders */
+  /* ink */
+  --c-ink: #2d2a45;           /* primary text */
+  --c-ink-2: #5e5a7d;         /* secondary text (AA on surface) */
+  --c-ink-3: #8f8baa;         /* tertiary / large or decorative only */
+  --c-on-primary: #ffffff;
+  /* brand */
+  --c-primary: #5468ff;       /* "pal blue" — buttons, links, focus */
+  --c-primary-strong: #3e50e6;
+  --c-primary-soft: #e9ecff;
+  --c-sun: #ffc93c;   --c-sun-soft: #fff4d1;
+  --c-coral: #ff7b6b; --c-coral-soft: #ffe6e2;
+  --c-mint: #2fbf9b;  --c-mint-soft: #ddf6ee;
+  --c-sky: #8fd3ff;   --c-sky-soft: #e6f5ff;
+  --c-lilac: #a88bff; --c-lilac-soft: #f0eaff;
+  /* status tones (engine.statusTone → these) : solid / soft background / ink on soft */
+  --c-tone-neutral: #8f8baa;  --c-tone-neutral-soft: #f1eef6;  --c-tone-neutral-ink: #5e5a7d;
+  --c-tone-info: #4c8dff;     --c-tone-info-soft: #e6f0ff;     --c-tone-info-ink: #2a5fc4;
+  --c-tone-progress: #ff9a3c; --c-tone-progress-soft: #fff0df; --c-tone-progress-ink: #b25a00;
+  --c-tone-success: #22b58a;  --c-tone-success-soft: #ddf6ee;  --c-tone-success-ink: #0f7a5b;
+  --c-tone-warning: #f2a100;  --c-tone-warning-soft: #fff4d1;  --c-tone-warning-ink: #8a5a00;
+  --c-tone-danger: #f0524a;   --c-tone-danger-soft: #ffe6e2;   --c-tone-danger-ink: #b42820;
+  /* character signature colors */
+  --c-char-truck: #ff9a3c;
+  --c-char-plane: #4c8dff;
+  --c-char-bunny: #ff8fb1;
+
+  /* type */
+  --font-display: 'Jua', 'Pretendard Variable', Pretendard, system-ui, sans-serif;   /* rounded & cute: titles, numbers, character speech */
+  --font-body: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 18px; --fs-xl: 22px; --fs-2xl: 28px; --fs-3xl: 34px;
+  --lh-tight: 1.25; --lh: 1.5;
+
+  /* shape */
+  --r-sm: 10px; --r-md: 16px; --r-lg: 22px; --r-xl: 30px; --r-full: 999px;
+  --shadow-soft: 0 6px 20px rgba(45, 42, 69, 0.08);
+  --shadow-lift: 0 12px 32px rgba(45, 42, 69, 0.14);
+  --shadow-chunky: 0 4px 0 rgba(45, 42, 69, 0.14);   /* toy-like pressable buttons */
+
+  /* spacing (4px grid) */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+
+  /* layout */
+  --app-max: 480px;           /* app column width (mobile-first; desktop shows a centered column) */
+  --topbar-h: 56px;
+  --tabbar-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 150ms; --dur: 250ms; --dur-slow: 450ms;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --c-bg: #1b1930;
+  --c-bg-deep: #141226;
+  --c-surface: #25223e;
+  --c-surface-2: #2e2b4a;
+  --c-line: #3a3658;
+  --c-ink: #f3f1ff;
+  --c-ink-2: #c3bfe0;
+  --c-ink-3: #8d88b0;
+  --c-primary: #7d8cff;
+  --c-primary-strong: #96a2ff;
+  --c-primary-soft: #2f3366;
+  --c-on-primary: #10102a;
+  --c-sun-soft: #3d3420; --c-coral-soft: #42272e; --c-mint-soft: #1d3a37; --c-sky-soft: #1e3247; --c-lilac-soft: #31284f;
+  --c-tone-neutral-soft: #2f2c48; --c-tone-neutral-ink: #c3bfe0;
+  --c-tone-info-soft: #1f2d4f;    --c-tone-info-ink: #9cc0ff;
+  --c-tone-progress-soft: #3d2c1a; --c-tone-progress-ink: #ffc08a;
+  --c-tone-success-soft: #173a31; --c-tone-success-ink: #7fe0c2;
+  --c-tone-warning-soft: #3b3117; --c-tone-warning-ink: #ffd36b;
+  --c-tone-danger-soft: #45222a;  --c-tone-danger-ink: #ff9d97;
+  --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-chunky: 0 4px 0 rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}

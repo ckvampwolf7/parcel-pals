@@ -1,0 +1,35 @@
+/* Global reset + app frame — owned by lead. */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0; min-height: 100dvh;
+  font-family: var(--font-body); font-size: var(--fs-md); line-height: var(--lh);
+  color: var(--c-ink); background: var(--c-bg-deep);
+  -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere;
+}
+h1, h2, h3, h4, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+img, svg { display: block; max-width: 100%; }
+:focus-visible { outline: 3px solid var(--c-primary); outline-offset: 2px; border-radius: 6px; }
+
+/* App column: full-bleed on phones, centered "device" on wide screens */
+#root { min-height: 100dvh; display: flex; justify-content: center; }
+.app-frame {
+  position: relative; width: 100%; max-width: var(--app-max); min-height: 100dvh;
+  background: var(--c-bg); display: flex; flex-direction: column;
+}
+@media (min-width: 600px) {
+  body { background: var(--c-bg-deep) radial-gradient(circle at 20% 10%, var(--c-sun-soft) 0, transparent 40%) fixed; }
+  .app-frame { box-shadow: 0 0 0 1px var(--c-line), var(--shadow-lift); }
+}
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: 0; }
+
+/* Reduced motion: set by settings (data-reduce-motion) — components should also check useReducedMotion() for JS animation */
+:root[data-reduce-motion='true'] *, :root[data-reduce-motion='true'] *::before, :root[data-reduce-motion='true'] *::after {
+  animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+}
