@@ -78,6 +78,8 @@ export interface Checkpoint {
   status: StatusTag;
   location: LocalizedText;
   message: LocalizedText; //  carrier-style message, e.g. 간선상차 / Departed facility
+  /** Machine event code (e.g. 'pickup', 'hub_depart', 'customs_clear'); also embedded in `id` by the mock provider. */
+  code?: string;
   /** index into snapshot.stops where this happened, if known */
   stopIndex?: number;
 }
@@ -124,7 +126,7 @@ export interface Parcel {
   carrierId: string;
   nickname: string; //            user label, e.g. "Running shoes"
   character: CharacterKind;
-  createdAt: string; //           ISO, real time the user added it
+  createdAt: string; //           ISO, SIMULATION time the user added it (sim clock; equals real time at 1× speed)
   archived: boolean;
   snapshot: TrackingSnapshot | null;
   /** Number of checkpoints the user hasn't seen yet. */

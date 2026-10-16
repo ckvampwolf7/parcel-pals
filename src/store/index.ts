@@ -60,7 +60,9 @@ let persistenceEnabled = true;
 export function persistNow(): void {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = undefined; }
   if (!persistenceEnabled) return;
-  savePersisted({ version: 1, parcels: state.parcels, settings: state.settings, inbox: state.inbox, clock: clock.toJSON() });
+  // Clock is saved re-anchored to "now": anchorReal = wall time of the save, anchorSim = sim time at the save.
+  savePersisted({ version: 1, parcels: state.parcels, settings: state.settings, inbox: state.inbox,
+    clock: { anchorReal: Date.now(), anchorSim: clock.now().getTime(), speed: clock.toJSON().speed } });
 }
 function schedulePersist() {
   if (saveTimer) return;
@@ -71,7 +73,13 @@ function hydrate() {
   const saved = loadPersisted(DEFAULT_SETTINGS);
   if (saved) {
     state = { parcels: saved.parcels, settings: saved.settings, inbox: saved.inbox };
-    clock = createSimClock(saved.clock ?? { anchorReal: Date.now(), anchorSim: Date.now(), speed: saved.settings.demoSpeed });
+    // Demo speed only applies while the app is open: time spent closed counts at 1× (real time),
+    // otherwise a 60× clock would jump weeks ahead overnight.
+    const c = saved.clock;
+    const closedMs = c ? Math.max(0, Date.now() - c.anchorReal) : 0;
+    clock = createSimClock(c
+      ? { anchorReal: Date.now(), anchorSim: c.anchorSim + closedMs, speed: c.speed }
+      : { anchorReal: Date.now(), anchorSim: Date.now(), speed: saved.settings.demoSpeed });
     if (clock.toJSON().speed !== saved.settings.demoSpeed) clock.setSpeed(saved.settings.demoSpeed);
   } else {
     state = { parcels: [], settings: { ...DEFAULT_SETTINGS }, inbox: [] };
