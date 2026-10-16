@@ -37,8 +37,10 @@
 @keyframes ui-pop { from { transform: scale(.3); } }
 
 /* ───── Toasts ───── */
-.ui-toasts { position: fixed; z-index: 70; top: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--app-max); pointer-events: none; }
-.ui-toasts__list { display: flex; flex-direction: column; gap: var(--sp-2); padding: calc(var(--safe-top) + var(--sp-3)) var(--sp-3) 0; }
+.ui-toasts { position: fixed; z-index: 70; bottom: calc(var(--safe-bottom) + var(--sp-4)); left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--app-max); pointer-events: none; }
+.ui-toasts__list { display: flex; flex-direction: column-reverse; gap: var(--sp-2); padding: 0 var(--sp-3); }
+/* Toasts sit at the bottom (thumb zone) so they never cover the TopBar; above the tab bar when it is shown. */
+.has-tabbar .ui-toasts { bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--sp-3)); }
 .ui-toast {
   pointer-events: auto; position: relative; display: flex; align-items: center;
   background: var(--c-surface); color: var(--c-ink); border-radius: var(--r-lg);
@@ -60,7 +62,7 @@ button.ui-toast__body { cursor: pointer; }
 .ui-toast__icon--danger { background: var(--c-tone-danger-soft); color: var(--c-tone-danger-ink); }
 .ui-toast__close { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin-right: var(--sp-1); border-radius: 50%; color: var(--c-ink-2); }
 .ui-toast__close:hover { background: var(--c-surface-2); }
-@keyframes ui-toast-in { from { transform: translateY(-24px) scale(.96); opacity: 0; } }
+@keyframes ui-toast-in { from { transform: translateY(24px) scale(.96); opacity: 0; } }
 
 .ui-screen--center { justify-content: center; }
 .nf-art { position: relative; }

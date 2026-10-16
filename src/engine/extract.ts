@@ -111,6 +111,8 @@ export function extractFromText(text: string): ExtractedNumber[] {
       const pStart = start + off;
       const pEnd = pStart + s.length;
       if (/^0\d{1,2}-\d{3,4}-\d{4}$/.test(s) || /^01[016789]\d{7,8}$/.test(n)) continue; // phone numbers
+      if (/^1[5-8]\d{2}-?\d{4}$/.test(s)) continue; // nationwide 대표번호 like 1588-1255 (customer-service lines)
+      if (/(고객\s*센터|콜\s*센터|문의|전화|연락처|tel|phone|call|☎|📞)[\s:：.\-]*$/i.test(a.slice(Math.max(0, pStart - 12), pStart))) continue; // number right after a phone label
       if (/^(19|20)\d{2}[-.]?\d{2}[-.]?\d{2}$/.test(s) || /^(19|20)\d{6}$/.test(n)) continue; // dates
       if (/^\d{1,2}:\d{2}/.test(s)) continue;
       const before = a.slice(Math.max(0, pStart - 24), pStart);

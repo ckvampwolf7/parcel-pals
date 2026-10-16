@@ -136,3 +136,12 @@ describe('smart paste', () => {
     expect(extractFromText('안녕하세요 택배 언제 와요?')).toEqual([]);
   });
 });
+
+describe('extractFromText ignores customer-service phone numbers (lead regression)', () => {
+  it('drops 1588-xxxx 대표번호 and numbers after 고객센터/문의', async () => {
+    const { extractFromText } = await import('@/engine');
+    const msg = '[CJ대한통운] 주문하신 상품이 발송되었습니다.\n운송장번호: 6123-4567-8909\n배송조회: 고객센터 1588-1255\n문의 02-123-4567';
+    const found = extractFromText(msg).map((c) => c.trackingNumber);
+    expect(found).toEqual(['612345678909']);
+  });
+});

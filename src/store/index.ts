@@ -387,7 +387,14 @@ export function getInbox(): InboxItem[] { return state.inbox; }
 /** Current simulation time, re-rendering every `intervalMs` (for countdowns / relative times). */
 export function useSimNow(intervalMs = 1000): Date {
   const [now, setNow] = useState(() => clock.now());
-  useEffect(() => { const t = setInterval(() => setNow(clock.now()), intervalMs); return () => clearInterval(t); }, [intervalMs]);
+  useEffect(() => {
+    const tick = () => setNow(clock.now());
+    const t = setInterval(tick, intervalMs);
+    // Also re-read the clock whenever store state changes (refresh, fast-forward, speed change),
+    // so "now" is never older than freshly loaded snapshot times (avoids "updated in 6 h" style glitches).
+    listeners.add(tick);
+    return () => { clearInterval(t); listeners.delete(tick); };
+  }, [intervalMs]);
   return now;
 }
 /** Non-hook access to sim time. */

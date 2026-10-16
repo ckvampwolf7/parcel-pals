@@ -70,13 +70,13 @@ function ToastItem({ toast, onDismiss, closeLabel }: { toast: Toast; onDismiss: 
   const onPointerDown = (e: RPointerEvent) => { start.current = { x: e.clientX, y: e.clientY }; moved.current = false; };
   const onPointerMove = (e: RPointerEvent) => {
     if (!start.current) return;
-    const dx = e.clientX - start.current.x, dy = Math.min(0, e.clientY - start.current.y);
-    if (Math.abs(dx) > 6 || dy < -6) { moved.current = true; setDrag({ x: dx, y: dy }); }
+    const dx = e.clientX - start.current.x, dy = Math.max(0, e.clientY - start.current.y);
+    if (Math.abs(dx) > 6 || dy > 6) { moved.current = true; setDrag({ x: dx, y: dy }); }
   };
   const onPointerUp = () => {
     const d = drag;
     start.current = null; setDrag(null);
-    if (d && (Math.abs(d.x) > 70 || d.y < -36)) onDismiss(toast.id);
+    if (d && (Math.abs(d.x) > 70 || d.y > 36)) onDismiss(toast.id);
   };
   const activate = () => {
     if (moved.current) { moved.current = false; return; }
@@ -84,7 +84,7 @@ function ToastItem({ toast, onDismiss, closeLabel }: { toast: Toast; onDismiss: 
     onDismiss(toast.id);
   };
 
-  const style = drag ? { transform: `translate(${drag.x}px, ${drag.y}px)`, opacity: Math.max(0.2, 1 - Math.abs(drag.x) / 220 + drag.y / 120), transition: 'none' } : undefined;
+  const style = drag ? { transform: `translate(${drag.x}px, ${drag.y}px)`, opacity: Math.max(0.2, 1 - Math.abs(drag.x) / 220 - drag.y / 120), transition: 'none' } : undefined;
   const content = (
     <>
       {toast.character && <PalAvatar kind={toast.character} mood={toast.mood ?? 'happy'} size={44} animated />}
