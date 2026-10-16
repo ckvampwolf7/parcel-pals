@@ -103,6 +103,17 @@ export interface TrackingSnapshot {
   eta?: Eta;
   /** True when the plan slipped (drives 'worried' mood and copy). */
   delayed?: boolean;
+  /** Short machine reason for the delay, e.g. 'weather' | 'hub_congestion' | 'customs_inspection' | 'holiday' (speech/i18n keys). */
+  delayReason?: string;
+  /** True when there has been no new checkpoint for unusually long for this stage (pal reassures + suggests next step). */
+  stale?: boolean;
+  /**
+   * Cross-border handoff: the international carrier handed the parcel to a domestic carrier, which issued a NEW number.
+   * Present once the handoff checkpoint has happened.
+   */
+  handoff?: { carrierId: string; trackingNumber: string; time: string };
+  /** For available_for_pickup: where to collect it. */
+  pickup?: { place: LocalizedText; kind: 'convenience_store' | 'locker' | 'branch' | 'post_office' };
   /** ISO time the provider produced this snapshot (simulation time for the mock provider). */
   updatedAt: string;
 }

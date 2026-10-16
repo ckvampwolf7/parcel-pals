@@ -9,6 +9,16 @@ import App from './App';
 import { actions, simNow, startStore } from './store';
 import { initNotifications, initPwa } from './pwa';
 
+// Web Share Target (manifest share_target, GET): "./?title=…&text=…&url=…" → open Add with the shared text.
+(() => {
+  const q = new URLSearchParams(location.search);
+  const shared = ['title', 'text', 'url'].map((k) => q.get(k)).filter(Boolean).join('\n').trim();
+  if (!shared) return;
+  ['title', 'text', 'url'].forEach((k) => q.delete(k));
+  const rest = q.toString();
+  history.replaceState(null, '', `${location.pathname}${rest ? '?' + rest : ''}#/add?n=${encodeURIComponent(shared)}`);
+})();
+
 startStore();
 
 // Test/debug handle (dev server, or any build opened with ?debug). Used by e2e tests and screenshot scripts.
