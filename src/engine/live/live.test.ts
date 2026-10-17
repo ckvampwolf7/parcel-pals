@@ -150,7 +150,7 @@ describe('real FedEx trace (516139538183, captured 2026-10-16)', () => {
     const s = buildLiveSnapshot(v1ToEvents(FEDEX), { carrierId: 'us.fedex', trackingNumber: '516139538183', now });
     expect(s.status).toBe('in_transit');
     expect(s.checkpoints.map((c) => c.status)).toEqual(['info_received', 'in_transit', 'in_transit', 'in_transit', 'exception', 'in_transit']);
-    expect(s.stops.map((x) => x.name.ko)).toEqual(['CHICAGO', '우리 집']);
+    expect(s.stops.map((x) => x.name.ko)).toEqual(['Chicago', '우리 집']);
     expect(s.checkpoints[5].detail).toBe('Departed FedEx location');
     expect(s.stale).toBe(false);
   });
@@ -172,5 +172,82 @@ describe('real FedEx trace (516139538183, captured 2026-10-16)', () => {
     const r = await probeCarriers('516139538183', ['us.fedex', 'kr.cjlogistics', 'kr.lotte', 'us.amazon'], { fetchImpl: f, now });
     expect(r.map((x) => x.result)).toEqual(['found', 'not_found', 'invalid', 'unsupported']);
     expect(r[0].events).toBe(6);
+  });
+});
+
+describe('international carriers speak their own language', () => {
+  const FEDEX_FULL = {
+    progresses: [
+      { time: '2026-10-14T11:35:00-05:00', status: { id: 'information_received', text: 'Label created' }, location: { name: null }, description: 'Shipment information sent to FedEx' },
+      { time: '2026-10-14T14:00:00-05:00', status: { id: 'at_pickup', text: 'Picked up' }, location: { name: 'CHICAGO, IL' }, description: 'Picked up' },
+      { time: '2026-10-14T20:29:00-05:00', status: { id: 'in_transit', text: 'In transit' }, location: { name: 'CHICAGO, IL' }, description: 'Arrived at FedEx location' },
+      { time: '2026-10-14T21:06:18-05:00', status: { id: 'in_transit', text: 'In transit' }, location: { name: 'CHICAGO, IL' }, description: 'Left FedEx origin facility' },
+      { time: '2026-10-15T00:47:27-05:00', status: { id: 'in_transit', text: 'Shipment exception' }, location: { name: 'CHICAGO, IL' }, description: 'Shipment exception' },
+      { time: '2026-10-16T06:52:58-05:00', status: { id: 'in_transit', text: 'In transit' }, location: { name: 'MEMPHIS, TN' }, description: 'Departed FedEx hub' },
+    ],
+  } as unknown as Parameters<typeof v1ToEvents>[0];
+  // Sunday 2026-10-18, 23:00 KST: a Korean rest day and night — neither applies to a FedEx hub abroad.
+  const now = new Date('2026-10-18T14:00:00Z');
+  const DOMESTIC = /간선|허브|터미널|알림톡|경비실|일요일|공휴일/;
+  const parcelFor = async (carrierId: string, character: 'truck' | 'plane' | 'bunny', progresses = FEDEX_FULL) => {
+    const snapshot = buildLiveSnapshot(v1ToEvents(progresses), { carrierId, trackingNumber: '516139538183', now });
+    return { id: 'p1', trackingNumber: '516139538183', carrierId, nickname: '운동화', character, createdAt: now.toISOString(), archived: false, snapshot, unread: 0 } as import('@/types').Parcel;
+  };
+
+  it('timeline explanations name the carrier instead of line-haul trucks and hubs', async () => {
+    const { explainStatus } = await import('@/engine');
+    const p = await parcelFor('us.fedex', 'plane');
+    const lines = p.snapshot!.checkpoints.map((c) => explainStatus(c, 'ko', 'us.fedex'));
+    for (const l of lines) expect(l).not.toMatch(DOMESTIC);
+    expect(lines[2]).toContain('페덱스 거점에 도착');
+    expect(lines[3]).toContain('페덱스 거점을 떠나');
+    expect(lines[4]).toContain('예외 상황');
+    expect(lines[0]).toContain('페덱스에 배송 정보를 등록');
+    const en = p.snapshot!.checkpoints.map((c) => explainStatus(c, 'en', 'us.fedex'));
+    expect(en[2]).toContain('FedEx facility');
+  });
+
+  it('pal lines, next steps and situations avoid the Korean domestic pipeline', async () => {
+    const { checkpointLine, nextStepLine, speechSituation, characterLine } = await import('@/engine');
+    for (const pal of ['truck', 'plane', 'bunny'] as const) {
+      const p = await parcelFor('us.fedex', pal);
+      expect(speechSituation(p, now)).not.toMatch(/restDay|night/);
+      for (const locale of ['ko', 'en'] as const) {
+        for (const c of p.snapshot!.checkpoints) expect(checkpointLine(p, c, locale)).not.toMatch(DOMESTIC);
+        expect(nextStepLine(p, locale, now) ?? '').not.toMatch(DOMESTIC);
+        expect(characterLine(p, locale, now)).not.toMatch(DOMESTIC);
+      }
+    }
+  });
+
+  it('domestic carriers keep the Korean explanations', async () => {
+    const { explainStatus } = await import('@/engine');
+    const s = buildLiveSnapshot(v1ToEvents(CJ_V1 as never), { carrierId: 'kr.cjlogistics', trackingNumber: '1', now });
+    expect(explainStatus(s.checkpoints[2], 'ko', 'kr.cjlogistics')).toContain('큰 트럭');
+  });
+
+  it('classifies common FedEx / UPS / DHL / USPS wording', async () => {
+    const { classifyCarrierText } = await import('@/engine');
+    expect(classifyCarrierText('At local FedEx facility')).toBe('arrive_local');
+    expect(classifyCarrierText('On FedEx vehicle for delivery')).toBe('out_for_delivery');
+    expect(classifyCarrierText('Loaded on Delivery Vehicle')).toBe('out_for_delivery');
+    expect(classifyCarrierText('International shipment release - Import')).toBe('customs_cleared');
+    expect(classifyCarrierText('Clearance processing complete')).toBe('customs_cleared');
+    expect(classifyCarrierText('Clearance delay - Import')).toBe('customs_in');
+    expect(classifyCarrierText('Shipment information sent to FedEx')).toBe('received');
+    expect(classifyCarrierText('Accepted at USPS Origin Facility')).toBe('pickup');
+    expect(classifyCarrierText('Notice Left (No Authorized Recipient Available)')).toBe('attempt_fail');
+    expect(classifyCarrierText('Departed FedEx hub')).toBe('depart');
+  });
+
+  it('tidies all-caps place names but leaves Korean names and airport codes alone', async () => {
+    const { prettyPlace } = await import('./buildSnapshot');
+    expect(prettyPlace('CHICAGO')).toBe('Chicago');
+    expect(prettyPlace('LOS ANGELES, CA US')).toBe('Los Angeles, CA US');
+    expect(prettyPlace('ICN')).toBe('ICN');
+    expect(prettyPlace('대전HUB')).toBe('대전HUB');
+    expect(prettyPlace('Incheon')).toBe('Incheon');
+    const p = await parcelFor('us.fedex', 'plane');
+    expect(p.snapshot!.stops.map((x) => x.name.ko)).toEqual(['Chicago, IL', 'Memphis, TN', '우리 집']);
   });
 });

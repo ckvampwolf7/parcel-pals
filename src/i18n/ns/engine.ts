@@ -256,6 +256,68 @@ const ko: Tree = {
     exception: '배송 중 문제가 생겼어요. 택배사나 판매자에게 확인이 필요해요.',
     transit: '다음 장소로 이동하는 중이에요.',
   },
+  // ── international carriers' real data (FedEx, UPS, DHL…): neutral wording instead of the Korean domestic pipeline.
+  //    Used only for live parcels from carriers with scope 'international'; missing keys fall back to the base ones.
+  sayIntl: {
+    truck: {
+      pickedUp: ['부릉! {place}에서 {name} 상자를 받았어요.', '짐칸에 잘 실었어요. 첫 거점으로 달려갈게요!'],
+      pickupReady: ['{pickupPlace}에 잘 내려놨어요! 시간 될 때 찾아가 주세요.'],
+    },
+    plane: {
+      customsCleared: ['통관 도장 쾅! 다시 배송길에 올라요.'],
+      pickupReady: ['긴 여행 끝에 {pickupPlace} 도착! 데리러 와 주세요~'],
+    },
+    bunny: {
+      pickupReady: ['{pickupPlace}에서 기다릴게요! 데리러 와요!'],
+    },
+  },
+  cpIntl: {
+    truck: {
+      pickup: ['부릉! {place}에서 상자를 받았어요.', '{name} 상자 픽업 완료! 출발해요.'],
+      depart: ['부릉, {place} {carrier} 거점에서 출발했어요!', '{place}에서 다음 거점으로 출발!'],
+      arrive_hub: ['{place} {carrier} 거점 도착! 분류 기다리는 중이에요.'],
+      arrive_local: ['받는 곳 근처 {place}까지 왔어요!'],
+      exception: ['예외 기록이 떴어요. 잠깐 멈춘 걸 수도 있어요, 다음 기록을 지켜볼게요.'],
+    },
+    plane: {
+      arrive_hub: ['{place} {carrier} 거점에 내려서 잠깐 쉬어요.'],
+      exception: ['여행 중에 예외 기록이 떴어요. 다음 소식을 지켜볼게요~'],
+    },
+    bunny: {
+      arrive_hub: ['{place} {carrier} 거점 도착! 숨 고르는 중이에요.'],
+      arrive_local: ['{place} 도착! 거의 다 왔어요, 두근두근!'],
+      exception: ['앗, 예외 기록이 떴어요! 다음 소식을 같이 기다려요.'],
+    },
+  },
+  explainIntl: {
+    received: '보내는 분이 {carrier}에 배송 정보를 등록했어요. 아직 물건을 넘기기 전이에요.',
+    pickup: '{carrier} 기사님이 물건을 받아 갔어요. 이제 첫 거점으로 가요.',
+    depart: '{carrier} 거점을 떠나 다음 거점(또는 공항)으로 출발했어요.',
+    arrive_hub: '{carrier} 거점에 도착했어요. 분류를 거쳐 다음 목적지로 보내져요.',
+    arrive_local: '받는 곳 근처 {carrier} 배송 거점에 도착했어요. 곧 배송이 시작될 수 있어요.',
+    customs_in: '세관 절차(통관)가 진행 중이에요. 보통 하루에서 며칠 걸려요.',
+    customs_cleared: '통관이 끝나 세관에서 풀려났어요. 다시 배송길에 올라요.',
+    handover: '현지 배송 업체에 물건이 넘어갔어요. 새 운송장 번호가 생길 수 있어요.',
+    out_for_delivery: '배송 차량에 실려 오늘 배달을 시작했어요.',
+    attempt_fail: '배달을 시도했지만 전하지 못했어요. 문자·이메일·안내문으로 재배송 방법을 확인해 보세요.',
+    pickup_ready: '{carrier} 거점이나 지정 보관 장소에 있어요. 직접 찾아가야 해요.',
+    exception: '예외 상황이 기록됐어요. 주소 확인, 통관 서류, 날씨, 운송 지연 등으로 잠깐 멈출 때 쓰는 말이에요. 이후 기록이 이어지면 다시 움직이는 거예요.',
+    transit: '다음 {carrier} 거점으로 이동하는 중이에요.',
+  },
+  nextIntl: {
+    infoReceived: '보내는 분이 물건을 넘기면 기록이 이어져요. 하루 이틀 걸릴 수 있어요.',
+    pickedUp: '첫 거점에서 분류를 마치면 다음 거점이나 공항으로 이동해요.',
+    moving: '다음 거점에 도착하면 분류를 거쳐 다시 출발해요. 해외 구간은 기록 사이 간격이 길 수 있어요.',
+    atHub: '분류가 끝나면 다음 거점이나 공항으로 이동해요. 해외 구간은 기록 사이 간격이 길 수 있어요.',
+    customs: '통관은 보통 1~3일 걸려요. 한국으로 오는 물건이면 개인통관고유부호가 주문 정보와 같은지 확인해 두세요.',
+    customsCleared: '통관이 끝났어요. 이제 받는 곳 쪽으로 다시 이동해요.',
+    nearby: '받는 곳 근처 거점이에요. 보통 다음 배송일에 배송을 출발해요.',
+    outForDelivery: '보통 오늘 안에 도착해요. 문 앞이나 받는 곳 주변을 확인해 주세요.',
+    attemptFail: '{carrier}에서 온 문자·이메일·안내문을 확인해 재배송을 요청하거나 보관 장소를 확인하세요.',
+    pickupReady: '보관 기간 안에 신분증과 운송장 번호를 챙겨 {pickupPlace}에서 찾아가세요.',
+    delivered: '상자가 안 보이면 문 앞과 주변을 확인하고, 그래도 없으면 {carrier}에 문의하세요.',
+    exception: '예외가 기록돼도 보통 하루 이틀 안에 다시 움직여요. 오래 그대로면 {carrier}나 판매자에게 문의해 주세요.',
+  },
   // ── what happens next / what to do
   next: {
     pending: '송장 직후엔 기록이 늦게 뜨기도 해요. 하루가 지나도 없으면 판매자에게 문의해 보세요.',
@@ -534,6 +596,66 @@ const en: Tree = {
     returning: 'It’s on its way back to the sender. Contact the seller.',
     exception: 'There was a problem in delivery. Check with the carrier or seller.',
     transit: 'It’s moving to the next location.',
+  },
+  sayIntl: {
+    truck: {
+      pickedUp: ['Vroom! Got {name} at {place}.', 'Loaded up! Heading to the first facility.'],
+      pickupReady: ['Dropped off at {pickupPlace}! Pick it up when you can.'],
+    },
+    plane: {
+      customsCleared: ['Stamped and cleared! Back on the road.'],
+      pickupReady: ['Long trip, and now I’m at {pickupPlace}. Come get me~'],
+    },
+    bunny: {
+      pickupReady: ['Waiting at {pickupPlace}! Come pick me up!'],
+    },
+  },
+  cpIntl: {
+    truck: {
+      pickup: ['Vroom! Picked up at {place}.', '{name} picked up! Rolling out.'],
+      depart: ['Vroom, left the {carrier} facility in {place}!', 'Off from {place} to the next facility!'],
+      arrive_hub: ['At the {carrier} facility in {place}! Waiting to be sorted.'],
+      arrive_local: ['Made it to {place}, close to you!'],
+      exception: ['An exception was logged. It may just be a pause — I’ll watch for the next update.'],
+    },
+    plane: {
+      arrive_hub: ['Resting a moment at the {carrier} facility in {place}.'],
+      exception: ['An exception was logged on my trip. Watching for the next update~'],
+    },
+    bunny: {
+      arrive_hub: ['At the {carrier} facility in {place}! Catching my breath.'],
+      arrive_local: ['At {place}! Almost there, so exciting!'],
+      exception: ['Oops, an exception was logged! Let’s wait for the next update together.'],
+    },
+  },
+  explainIntl: {
+    received: 'The sender registered the shipment with {carrier}. It hasn’t been handed over yet.',
+    pickup: '{carrier} picked it up. Next stop: the first facility.',
+    depart: 'It left a {carrier} facility for the next facility (or the airport).',
+    arrive_hub: 'It arrived at a {carrier} facility and will be sorted toward its next stop.',
+    arrive_local: 'It reached the {carrier} facility near the destination. Delivery may start soon.',
+    customs_in: 'It’s going through customs. This usually takes a day to a few days.',
+    customs_cleared: 'Customs released it. It’s back on its way.',
+    handover: 'It was handed to a local delivery partner. A new tracking number may be issued.',
+    out_for_delivery: 'It’s on the delivery vehicle for delivery today.',
+    attempt_fail: 'Delivery was attempted but failed. Check the text, email or door tag for how to reschedule.',
+    pickup_ready: 'It’s being held at a {carrier} location or pickup point. You need to collect it.',
+    exception: 'An exception was logged — used when a shipment pauses for an address check, customs paperwork, weather or a transport delay. Later updates mean it’s moving again.',
+    transit: 'It’s moving to the next {carrier} facility.',
+  },
+  nextIntl: {
+    infoReceived: 'Updates continue once the sender hands it over. This can take a day or two.',
+    pickedUp: 'After sorting at the first facility it moves on to the next facility or the airport.',
+    moving: 'At the next facility it gets sorted and moves on. International legs can go quiet between updates.',
+    atHub: 'After sorting it moves on to the next facility or the airport. International legs can go quiet between updates.',
+    customs: 'Customs usually takes 1–3 days. If it’s coming to Korea, make sure your customs ID (PCCC) matches the order.',
+    customsCleared: 'Customs is done. It’s heading toward you again.',
+    nearby: 'It’s at the facility near you. Delivery usually starts on the next delivery day.',
+    outForDelivery: 'It usually arrives today. Check your door and around the delivery spot.',
+    attemptFail: 'Check the text, email or door tag from {carrier} to reschedule or find where it’s held.',
+    pickupReady: 'Bring ID and the tracking number to {pickupPlace} before the hold period ends.',
+    delivered: 'If you can’t see it, check around your door, then contact {carrier}.',
+    exception: 'Exceptions usually clear within a day or two. If nothing changes for a while, contact {carrier} or the seller.',
   },
   next: {
     pending: 'New labels can take a while to show up. If there’s nothing after a day, contact the seller.',

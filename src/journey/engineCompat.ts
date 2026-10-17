@@ -10,7 +10,7 @@ export function nextStep(parcel: Parcel, locale: Locale, now?: Date): string | n
 /** Plain-language explanation of a checkpoint (jargon → words). */
 export function explainCheckpoint(parcel: Parcel, c: Checkpoint, locale: Locale): string {
   try {
-    const s = explainStatus(c, locale);
+    const s = explainStatus(c, locale, parcel.carrierId);
     if (s) return s;
   } catch { /* fall through */ }
   return checkpointLine(parcel, c, locale);

@@ -4,7 +4,7 @@
  */
 import type { CharacterKind, Checkpoint, Locale, Parcel, TrackingSnapshot } from '@/types';
 import { hasKey, lt, t } from '@/i18n';
-import { carrierName } from './carriers';
+import { carrierName, getCarrier } from './carriers';
 import { dayStart, hourOf, isRestDay, nextWorkingDay } from './calendar';
 import { hashString } from './prng';
 import { checkpointCode, type EventCode } from './simulator';
@@ -64,6 +64,22 @@ function inKorea(s: TrackingSnapshot): boolean {
   return customsIdx < 0 || s.currentStopIndex >= customsIdx;
 }
 
+/**
+ * Real data from an international carrier (FedEx, UPS, DHL…). Its events don't follow the Korean domestic
+ * pipeline (line-haul trucks, hubs closed on Korean holidays), so wording falls back to neutral `*Intl` keys.
+ */
+function isIntlCarrier(carrierId: string | undefined): boolean {
+  return !!carrierId && getCarrier(carrierId)?.scope === 'international';
+}
+function intlLive(parcel: Parcel): boolean {
+  return parcel.snapshot?.source === 'live' && isIntlCarrier(parcel.carrierId);
+}
+
+/** `<intlBase>` variants when they exist (international live data), else `<base>`. */
+function pickLineIntl(intl: boolean, base: string, intlBase: string, salt: string, params: Record<string, string | number>, locale: Locale): string {
+  return (intl && pickLine(intlBase, salt, params, locale)) || pickLine(base, salt, params, locale);
+}
+
 function restNow(s: TrackingSnapshot, now: number): boolean {
   if (!inKorea(s)) return false;
   const h = hourOf(now);
@@ -97,9 +113,12 @@ export function speechSituation(parcel: Parcel, now?: Date): SpeechSituation {
     if (s.currentMode === 'ship') return 'sailing';
     return 'moving';
   }
-  if (restNow(s, at)) return 'restDay';
-  const h = hourOf(at);
-  if (h >= 22 || h < 6) return 'night';
+  // Korean rest days and night hours say nothing about a FedEx hub in Chicago.
+  if (!intlLive(parcel)) {
+    if (restNow(s, at)) return 'restDay';
+    const h = hourOf(at);
+    if (h >= 22 || h < 6) return 'night';
+  }
   if (lastCode === 'pickup') return 'pickedUp';
   if (lastCode === 'flight_arrive' || lastCode === 'sail_arrive') return 'landed';
   if (s.stops[s.currentStopIndex]?.kind === 'local') return 'nearby';
@@ -141,7 +160,8 @@ export function characterLine(parcel: Parcel, locale: Locale, now?: Date): strin
   const at = now ?? (parcel.snapshot ? new Date(parcel.snapshot.updatedAt) : new Date());
   const sit = speechSituation(parcel, at);
   const salt = `${parcel.snapshot?.checkpoints.at(-1)?.id ?? parcel.id}|${sit}`;
-  return pickLine(`engine.say.${palOf(parcel)}.${sit}`, salt, speechParams(parcel, locale, at.getTime()), locale);
+  const pal = palOf(parcel);
+  return pickLineIntl(intlLive(parcel), `engine.say.${pal}.${sit}`, `engine.sayIntl.${pal}.${sit}`, salt, speechParams(parcel, locale, at.getTime()), locale);
 }
 
 // ───────────────────────── checkpoints ─────────────────────────
@@ -189,16 +209,24 @@ export function checkpointLine(parcel: Parcel, checkpoint: Checkpoint, locale: L
   if (c?.code === 'delay' && c.detail && hasKey(`engine.reason.${c.detail}`)) params.reason = t(`engine.reason.${c.detail}`, undefined, locale);
   if (c?.code === 'delivered' && c.detail && hasKey(`engine.where.${c.detail}`)) params.where = t(`engine.where.${c.detail}`, undefined, locale);
   if (c?.code === 'picked_up') params.where = t('engine.where.pickup', undefined, locale);
-  let line = pickLine(`engine.cp.${pal}.${kind}`, checkpoint.id, params, locale);
+  const intl = !c && isIntlCarrier(parcel.carrierId);
+  let line = pickLineIntl(intl, `engine.cp.${pal}.${kind}`, `engine.cpIntl.${pal}.${kind}`, checkpoint.id, params, locale);
   // A handover without a new number shouldn't print an empty number.
   if (kind === 'handover' && !params.newNumber) line = finalize(t(`engine.cp.${pal}.handover.2`, params, locale), locale);
   return line || finalize(`${lt(checkpoint.message, locale)}`, locale);
 }
 
-/** Carrier jargon → one plain sentence (e.g. 간선상차 → "큰 트럭에 실려 다음 터미널로 출발했다는 뜻이에요."). */
-export function explainStatus(checkpoint: Checkpoint, locale: Locale): string {
+/**
+ * Carrier jargon → one plain sentence (e.g. 간선상차 → "큰 트럭에 실려 다음 터미널로 출발했다는 뜻이에요.").
+ * Pass the carrier so real events from international carriers are explained in their own terms
+ * ("Arrived at FedEx location" → "페덱스 거점에 도착했어요…") instead of Korean domestic ones.
+ */
+export function explainStatus(checkpoint: Checkpoint, locale: Locale, carrierId?: string): string {
   let kind = checkpointKind(checkpoint);
   if (kind === 'out_for_delivery_retry') kind = 'out_for_delivery';
+  if (!checkpointCode(checkpoint.id) && isIntlCarrier(carrierId) && hasKey(`engine.explainIntl.${kind}`, locale)) {
+    return t(`engine.explainIntl.${kind}`, { carrier: carrierName(carrierId!, locale) }, locale);
+  }
   if (!hasKey(`engine.explain.${kind}`, locale)) kind = 'transit';
   return t(`engine.explain.${kind}`, undefined, locale);
 }
@@ -209,7 +237,8 @@ export function nextStepLine(parcel: Parcel, locale: Locale, now?: Date): string
   const at = now ?? (s ? new Date(s.updatedAt) : new Date());
   const sit = speechSituation(parcel, at);
   if (sit === 'delivered') return null;
-  return finalize(t(`engine.next.${sit}`, speechParams(parcel, locale, at.getTime()), locale), locale);
+  const key = intlLive(parcel) && hasKey(`engine.nextIntl.${sit}`, locale) ? `engine.nextIntl.${sit}` : `engine.next.${sit}`;
+  return finalize(t(key, speechParams(parcel, locale, at.getTime()), locale), locale);
 }
 
 /** Screen-reader text for the journey scene, e.g. "슝슝이가 인천공항세관에서 통관 중이에요. 전체 여정의 70%예요." */

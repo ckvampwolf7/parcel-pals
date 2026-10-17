@@ -49,6 +49,17 @@ function stopKindFor(name: string, status: StatusTag): StopKind {
   return 'local';
 }
 
+/**
+ * Carriers abroad shout place names ("CHICAGO, IL US"). Title-case words of 3+ letters, keep short codes
+ * (states, countries) as they are, and leave a lone 3-letter token alone (airport codes like ICN).
+ */
+export function prettyPlace(raw: string): string {
+  const name = raw.trim().replace(/\s+/g, ' ');
+  // Only all-caps Latin names: "대전HUB" or "Incheon" stay as they are.
+  if (!/^[A-Z0-9 ,.'&()/#-]+$/.test(name) || !/[A-Z]{3}/.test(name) || /^[A-Z]{3}$/.test(name)) return name;
+  return name.replace(/[A-Z]{3,}/g, (w) => w[0] + w.slice(1).toLowerCase());
+}
+
 /** Stage → progress when we know nothing about places. */
 const STAGE_PROGRESS: Partial<Record<StatusTag, number>> = { info_received: 0.1, in_transit: 0.45, customs: 0.55, exception: 0.5 };
 
@@ -76,7 +87,8 @@ export function buildLiveSnapshot(events: LiveEvent[], ctx: BuildContext): Track
   const seen = new Map<string, number>();
 
   // Origin: the first place we hear about (or a generic "seller").
-  const firstLoc = sorted.find((e) => e.location?.trim())?.location?.trim();
+  const firstRaw = sorted.find((e) => e.location?.trim())?.location;
+  const firstLoc = firstRaw ? prettyPlace(firstRaw) : undefined;
   stops.push({ id: 'origin', kind: 'origin', name: firstLoc ? { ko: firstLoc, en: firstLoc } : { ko: '보내는 곳', en: 'Sender' }, modeToNext: 'truck' });
   if (firstLoc) seen.set(firstLoc, 0);
 
@@ -90,7 +102,7 @@ export function buildLiveSnapshot(events: LiveEvent[], ctx: BuildContext): Track
   };
   sorted.forEach((e) => {
     const status = liveEventStatus(e);
-    const loc = e.location?.trim() ?? '';
+    const loc = e.location?.trim() ? prettyPlace(e.location) : '';
     let stopIndex: number | undefined;
     if (loc) {
       if (!seen.has(loc)) {
