@@ -10,6 +10,7 @@ import ParcelScreen from '@/screens/ParcelScreen';
 import InboxScreen from '@/screens/InboxScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
 import NotFoundScreen from '@/screens/NotFoundScreen';
+import LinkScreen from '@/screens/LinkScreen';
 
 function useGlobalEffects() {
   const settings = useSettings();
@@ -40,6 +41,7 @@ export default function App() {
     case 'parcel': screen = <ParcelScreen key={route.id} id={route.id} />; break;
     case 'inbox': screen = <InboxScreen />; break;
     case 'settings': screen = <SettingsScreen />; break;
+    case 'link': screen = <LinkScreen key={route.key} syncKey={route.key} />; break;
     default: screen = <NotFoundScreen />;
   }
   return <AppShell route={route}>{screen}</AppShell>;

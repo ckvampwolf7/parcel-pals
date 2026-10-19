@@ -27,14 +27,58 @@ const DATED = new Set([
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function isHoliday(d: Date): boolean {
+/** Holiday calendar to use: Korean (default, the simulation) or US federal holidays (US carriers). */
+export type HolidayCountry = 'KR' | 'US';
+
+/** n-th (1-based) weekday `wd` (0=Sun) of month `m` (0-based); n = -1 → last one. */
+function nthWeekday(y: number, m: number, wd: number, n: number): number {
+  if (n > 0) {
+    const first = new Date(y, m, 1).getDay();
+    return 1 + ((wd - first + 7) % 7) + (n - 1) * 7;
+  }
+  const lastDay = new Date(y, m + 1, 0);
+  return lastDay.getDate() - ((lastDay.getDay() - wd + 7) % 7);
+}
+
+/** US federal holidays of year y as 'MM-DD' (fixed-date ones moved to Fri/Mon when they fall on a weekend). */
+function usHolidays(y: number): Set<string> {
+  const out = new Set<string>();
+  const fixed = (m: number, d: number) => {
+    const wd = new Date(y, m, d).getDay();
+    const obs = new Date(y, m, d + (wd === 6 ? -1 : wd === 0 ? 1 : 0));
+    if (obs.getFullYear() === y) out.add(`${pad(obs.getMonth() + 1)}-${pad(obs.getDate())}`);
+  };
+  const nth = (m: number, wd: number, n: number) => out.add(`${pad(m + 1)}-${pad(nthWeekday(y, m, wd, n))}`);
+  fixed(0, 1); //     New Year's Day
+  nth(0, 1, 3); //    Martin Luther King Jr. Day
+  nth(1, 1, 3); //    Presidents' Day
+  nth(4, 1, -1); //   Memorial Day
+  fixed(5, 19); //    Juneteenth
+  fixed(6, 4); //     Independence Day
+  nth(8, 1, 1); //    Labor Day
+  nth(9, 1, 2); //    Columbus Day
+  fixed(10, 11); //   Veterans Day
+  nth(10, 4, 4); //   Thanksgiving
+  fixed(11, 25); //   Christmas
+  // New Year's Day on a Saturday is observed on Dec 31 of the previous year.
+  if (new Date(y + 1, 0, 1).getDay() === 6) out.add('12-31');
+  return out;
+}
+const US_CACHE = new Map<number, Set<string>>();
+
+export function isHoliday(d: Date, country: HolidayCountry = 'KR'): boolean {
   const md = `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  if (country === 'US') {
+    const y = d.getFullYear();
+    if (!US_CACHE.has(y)) US_CACHE.set(y, usHolidays(y));
+    return US_CACHE.get(y)!.has(md);
+  }
   return FIXED.has(md) || DATED.has(`${d.getFullYear()}-${md}`);
 }
 
-/** Sundays and public holidays: hubs rest, no trunk moves / deliveries (Korean carriers). */
-export function isRestDay(d: Date): boolean {
-  return d.getDay() === 0 || isHoliday(d);
+/** Sundays and public holidays: hubs rest, no trunk moves / deliveries. Korean calendar unless `country` says US. */
+export function isRestDay(d: Date, country: HolidayCountry = 'KR'): boolean {
+  return d.getDay() === 0 || isHoliday(d, country);
 }
 
 /** Local midnight of the day containing `t`, shifted by `days` (DST-safe via Date constructor). */
@@ -67,10 +111,10 @@ export function dayDiff(a: number, b: number): number {
 }
 
 /** Next local day (after the day containing t) that is not a rest day; returns its midnight. */
-export function nextWorkingDay(t: number): number {
+export function nextWorkingDay(t: number, country: HolidayCountry = 'KR'): number {
   for (let k = 1; k < 15; k++) {
     const d = dayStart(t, k);
-    if (!isRestDay(new Date(d))) return d;
+    if (!isRestDay(new Date(d), country)) return d;
   }
   return dayStart(t, 1);
 }

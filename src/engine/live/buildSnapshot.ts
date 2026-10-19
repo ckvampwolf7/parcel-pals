@@ -4,10 +4,11 @@
  * visited, followed by the destination. Progress and ETA are derived honestly from the latest event; we never
  * invent movement or precise times the carrier didn't give us.
  */
-import type { Checkpoint, Eta, RouteStop, StatusTag, StopKind, TrackingSnapshot, TransportMode } from '@/types';
+import type { Checkpoint, Eta, Region, RouteStop, StatusTag, StopKind, TrackingSnapshot, TransportMode } from '@/types';
 import { hashString } from '../prng';
 import { classifyCarrierText, termToStatus } from '../statusText';
-import { getCarrier } from '../carriers';
+import { getCarrier, isDomesticCarrier } from '../carriers';
+import { getUserRegion } from '../region';
 
 /** One event as returned by a live API (v1 or v2), normalized. */
 export interface LiveEvent {
@@ -72,6 +73,8 @@ export interface BuildContext {
   now: Date;
   /** delivered time if the API reports it separately */
   deliveredAt?: string | null;
+  /** user's home region (default: the store's setting) — decides domestic vs international */
+  region?: Region;
 }
 
 /** Build a snapshot from live events (any order). Returns a pending snapshot when there are no events. */
@@ -81,7 +84,9 @@ export function buildLiveSnapshot(events: LiveEvent[], ctx: BuildContext): Track
     .filter((e) => e && e.time && !Number.isNaN(Date.parse(e.time)))
     .sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
 
-  const intl = getCarrier(ctx.carrierId)?.scope === 'international';
+  const region = ctx.region ?? getUserRegion();
+  // Domestic = the user's own country (CJ for a Korean user, FedEx/UPS/USPS for a US user).
+  const intl = !!getCarrier(ctx.carrierId) && !isDomesticCarrier(ctx.carrierId, region);
   const checkpoints: Checkpoint[] = [];
   const stops: RouteStop[] = [];
   const seen = new Map<string, number>();
@@ -154,7 +159,8 @@ export function buildLiveSnapshot(events: LiveEvent[], ctx: BuildContext): Track
   const lastMs = last ? Date.parse(last.time) : undefined;
   const ageH = lastMs !== undefined ? (nowMs - lastMs) / 3.6e6 : 0;
   const stale = status !== 'delivered' && status !== 'pending' && status !== 'available_for_pickup'
-    && ageH > (status === 'customs' ? 96 : intl ? 72 : 36);
+    // US ground shipments can go a day and a half between scans on long hauls.
+    && ageH > (status === 'customs' ? 96 : intl ? 72 : region === 'US' ? 48 : 36);
 
   return {
     status,
@@ -163,7 +169,7 @@ export function buildLiveSnapshot(events: LiveEvent[], ctx: BuildContext): Track
     progress: Math.max(0, Math.min(1, progress)),
     currentStopIndex,
     currentMode,
-    eta: estimateEta(status, intl, ctx.now, lastMs),
+    eta: estimateEta(status, intl, ctx.now, lastMs, region),
     stale,
     ...(pickupPlace ? { pickup: { place: pickupPlace, kind: /편의점|GS|CU|세븐|이마트24|점포/.test(pickupPlace.ko) ? 'convenience_store' : /우체국/.test(pickupPlace.ko) ? 'post_office' : /함|locker/i.test(pickupPlace.ko) ? 'locker' : 'branch' } as const } : {}),
     updatedAt: ctx.now.toISOString(),
@@ -173,15 +179,17 @@ export function buildLiveSnapshot(events: LiveEvent[], ctx: BuildContext): Track
 }
 
 /** Coarse, honest ETA window (low confidence) — only where the stage makes it meaningful. */
-function estimateEta(status: StatusTag, intl: boolean, now: Date, lastMs?: number): Eta | undefined {
+function estimateEta(status: StatusTag, intl: boolean, now: Date, lastMs?: number, region: Region = 'KR'): Eta | undefined {
   const day = (d: Date, addDays: number, h: number) => { const x = new Date(d); x.setDate(x.getDate() + addDays); x.setHours(h, 0, 0, 0); return x.toISOString(); };
   switch (status) {
     case 'out_for_delivery':
       return { earliest: now.toISOString(), latest: day(now, 0, 21), confidence: 0.8 };
     case 'in_transit': {
       if (intl) return { earliest: day(now, 2, 9), latest: day(now, 7, 21), confidence: 0.2 };
-      // Domestic parcels usually arrive the day after the last hub move.
+      // Korean domestic parcels usually arrive the day after the last hub move; US ground takes 1–5 days,
+      // so only a loose 1–3 day window from the last scan.
       const base = lastMs ? new Date(Math.max(lastMs, now.getTime() - 24 * 3.6e6)) : now;
+      if (region === 'US') return { earliest: day(base, 1, 9), latest: day(base, 3, 21), confidence: 0.3 };
       return { earliest: day(base, 1, 9), latest: day(base, 2, 21), confidence: 0.4 };
     }
     case 'customs':

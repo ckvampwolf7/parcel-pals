@@ -15,6 +15,7 @@ import { getInbox, getSettings, subscribe, subscribeState } from '@/store';
 import { checkpointLine } from '@/engine';
 import { getCurrentLocale } from '@/i18n';
 import { pwaText } from './strings';
+import { getSyncMeta } from '@/sync';
 
 export const QUIET_HOURS = { start: 22, end: 8 } as const;
 
@@ -105,7 +106,8 @@ const defaultEnv: NotificationEnv = {
   now: () => new Date(),
   isHidden: () => document.visibilityState === 'hidden',
   permission: () => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission),
-  enabled: () => getSettings().notifications,
+  // With Web Push on, the server sends these (also when the app is closed) — don't show them twice.
+  enabled: () => getSettings().notifications && !getSyncMeta().pushEndpoint,
   show: showBrowserNotification,
 };
 

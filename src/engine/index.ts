@@ -8,6 +8,7 @@
 export {
   CARRIERS, getCarrier, carrierName, trackingUrlFor, autoCharacter, normalizeTrackingNumber, validateTrackingNumber,
   detectCarriers, bestCarrierId, isValidS10, isValidUps, isValidMod7, isValidFedex12, s10CheckDigit, upsCheckDigit,
+  isDomesticCarrier, usesKoreanPipeline, carriersForPicker, stripUspsZip,
   MIN_TRACKING_LENGTH, MAX_TRACKING_LENGTH, type TrackingValidation,
 } from './carriers';
 export { extractFromText, extractShopHints, carriersMentioned, type ExtractedNumber, type ShopHints } from './extract';
@@ -22,7 +23,8 @@ export { classifyCarrierText, statusFromCarrierText, type JargonTerm } from './s
 // simulation
 export { snapshotAt, planFor, scenarioFor, checkpointCode, type EventCode, type DelayReason, type PickupKind, type Plan } from './simulator';
 export { createSimClock, type SimClock, type SimClockState } from './clock';
-export { isRestDay, isHoliday } from './calendar';
+export { isRestDay, isHoliday, type HolidayCountry } from './calendar';
+export { detectRegion, getUserRegion, setUserRegion } from './region';
 
 // presentation
 export { statusTone, statusLabel, moodFor, isMoving, STATUS_TAGS, type StatusTone } from './status';

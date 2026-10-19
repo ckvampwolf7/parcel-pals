@@ -67,6 +67,20 @@ describe('AddParcelScreen', () => {
     expect(select.value).toBe(other.value);
   });
 
+  it('in the US: US carriers come first and a bare 12-digit number is FedEx', () => {
+    actions.updateSettings({ region: 'US' });
+    try {
+      render(<AddParcelScreen />);
+      fireEvent.change(input(), { target: { value: '612345678901' } });
+      const select = screen.getByTestId('carrier-select') as HTMLSelectElement;
+      expect(select.value).toBe('us.fedex');
+      const first = select.querySelector('optgroup')!;
+      expect([...first.querySelectorAll('option')].map((o) => o.value).sort()).toEqual(['us.amazon', 'us.fedex', 'us.ups', 'us.usps']);
+    } finally {
+      actions.updateSettings({ region: 'KR' });
+    }
+  });
+
   it('pulls the number out of a pasted message', () => {
     render(<AddParcelScreen />);
     fireEvent.change(input(), { target: { value: '[CJ대한통운] 고객님의 상품이 발송되었습니다. 운송장번호: 6123-4567-8901 문의 1588-1255' } });

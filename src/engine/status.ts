@@ -3,6 +3,7 @@ import type { Mood, StatusTag, TrackingSnapshot } from '@/types';
 import { t } from '@/i18n';
 import type { Locale } from '@/types';
 import { isNight, isRestDay } from './calendar';
+import { getUserRegion } from './region';
 
 export type StatusTone = 'neutral' | 'info' | 'progress' | 'warning' | 'danger' | 'success';
 
@@ -57,7 +58,7 @@ export function moodFor(snapshot: TrackingSnapshot | null, now?: Date): Mood {
   }
   // in_transit / customs
   if (isMoving(snapshot)) return 'moving';
-  if (isNight(at) || isRestDay(new Date(at))) return 'sleeping';
+  if (isNight(at) || isRestDay(new Date(at), getUserRegion())) return 'sleeping';
   if (snapshot.stale) return 'sleeping';
   return snapshot.status === 'customs' ? 'waiting' : 'idle';
 }

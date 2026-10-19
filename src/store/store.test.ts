@@ -3,7 +3,8 @@ import {
   InvalidTrackingNumberError, STORAGE_KEY, __storeTest, actions, findByTrackingNumber, getInbox, getParcels, getSettings,
   subscribe, useParcels,
 } from '@/store';
-import { createSimClock, getProvider, mockProvider, setProvider, type TrackingProvider } from '@/engine';
+import { createSimClock, getProvider, getUserRegion, mockProvider, setProvider, type TrackingProvider } from '@/engine';
+import { __setDetectedRegionForTests } from '@/engine/region';
 import { parsePersisted } from './persist';
 import type { AppEvent } from '@/types';
 
@@ -239,6 +240,35 @@ describe('settings side effects', () => {
     expect(__storeTest.getClock().now().getTime()).toBe(T0 + 60e3 + 600e3);
     actions.updateSettings({ demoSpeed: -5 });
     expect(getSettings().demoSpeed).toBe(600);
+  });
+});
+
+describe('region', () => {
+  afterEach(() => { __setDetectedRegionForTests('KR'); actions.resetAll(); });
+  it('a fresh install in the US starts in English with the US region and ranks FedEx first', async () => {
+    __setDetectedRegionForTests('US');
+    actions.resetAll();
+    expect(getSettings()).toMatchObject({ region: 'US', locale: 'en' });
+    expect(getUserRegion()).toBe('US');
+    const p = await actions.addParcel({ trackingNumber: '516139538184' });
+    expect(p.carrierId).toBe('us.fedex');
+    expect(p.character).toBe('truck'); // domestic for a US user
+  });
+  it('saved settings from before the region setting keep their language and get the detected region', () => {
+    __setDetectedRegionForTests('US');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, parcels: [], inbox: [], settings: { locale: 'ko', onboarded: true } }));
+    __storeTest.hydrate();
+    expect(getSettings()).toMatchObject({ region: 'US', locale: 'ko' });
+  });
+  it('changing the region applies to detection and persists', () => {
+    actions.updateSettings({ region: 'US' });
+    expect(getUserRegion()).toBe('US');
+    actions.updateSettings({ region: 'XX' as never });
+    expect(getSettings().region).toBe('US');
+    __storeTest.persistNow();
+    actions.updateSettings({ region: 'KR' });
+    expect(getUserRegion()).toBe('KR');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.region).toBe('US');
   });
 });
 

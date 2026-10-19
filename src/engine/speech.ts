@@ -4,8 +4,9 @@
  */
 import type { CharacterKind, Checkpoint, Locale, Parcel, TrackingSnapshot } from '@/types';
 import { hasKey, lt, t } from '@/i18n';
-import { carrierName, getCarrier } from './carriers';
-import { dayStart, hourOf, isRestDay, nextWorkingDay } from './calendar';
+import { carrierName, isDomesticCarrier, usesKoreanPipeline } from './carriers';
+import { getUserRegion } from './region';
+import { dayStart, hourOf, isRestDay, nextWorkingDay, type HolidayCountry } from './calendar';
 import { hashString } from './prng';
 import { checkpointCode, type EventCode } from './simulator';
 import { isMoving } from './status';
@@ -65,14 +66,23 @@ function inKorea(s: TrackingSnapshot): boolean {
 }
 
 /**
- * Real data from an international carrier (FedEx, UPS, DHL…). Its events don't follow the Korean domestic
- * pipeline (line-haul trucks, hubs closed on Korean holidays), so wording falls back to neutral `*Intl` keys.
+ * Real data from a carrier outside the Korean domestic pipeline (FedEx, UPS, USPS, DHL, Cainiao…). Its events
+ * don't follow Korean line-haul trucks and hubs, so wording falls back to neutral `*Intl` keys.
  */
 function isIntlCarrier(carrierId: string | undefined): boolean {
-  return !!carrierId && getCarrier(carrierId)?.scope === 'international';
+  return !usesKoreanPipeline(carrierId);
 }
 function intlLive(parcel: Parcel): boolean {
   return parcel.snapshot?.source === 'live' && isIntlCarrier(parcel.carrierId);
+}
+
+/**
+ * Whose rest days (Sundays + public holidays) apply to this parcel: Korean ones for the Korean pipeline,
+ * US federal holidays for a US carrier when the user lives in the US, none for a parcel abroad.
+ */
+function restCountryFor(parcel: Parcel): HolidayCountry | undefined {
+  if (!intlLive(parcel)) return 'KR';
+  return getUserRegion() === 'US' && isDomesticCarrier(parcel.carrierId, 'US') ? 'US' : undefined;
 }
 
 /** `<intlBase>` variants when they exist (international live data), else `<base>`. */
@@ -80,10 +90,10 @@ function pickLineIntl(intl: boolean, base: string, intlBase: string, salt: strin
   return (intl && pickLine(intlBase, salt, params, locale)) || pickLine(base, salt, params, locale);
 }
 
-function restNow(s: TrackingSnapshot, now: number): boolean {
-  if (!inKorea(s)) return false;
+function restNow(s: TrackingSnapshot, now: number, country: HolidayCountry): boolean {
+  if (country === 'KR' && !inKorea(s)) return false;
   const h = hourOf(now);
-  return isRestDay(new Date(now)) || (h >= 21 && isRestDay(new Date(dayStart(now, 1))));
+  return isRestDay(new Date(now), country) || (h >= 21 && isRestDay(new Date(dayStart(now, 1)), country));
 }
 
 /** Which situation the pal is in right now (drives characterLine and nextStepLine). */
@@ -113,9 +123,10 @@ export function speechSituation(parcel: Parcel, now?: Date): SpeechSituation {
     if (s.currentMode === 'ship') return 'sailing';
     return 'moving';
   }
-  // Korean rest days and night hours say nothing about a FedEx hub in Chicago.
-  if (!intlLive(parcel)) {
-    if (restNow(s, at)) return 'restDay';
+  // Korean rest days and night hours say nothing about a FedEx hub in Chicago (unless the user lives in the US).
+  const restCountry = restCountryFor(parcel);
+  if (restCountry) {
+    if (restNow(s, at, restCountry)) return 'restDay';
     const h = hourOf(at);
     if (h >= 22 || h < 6) return 'night';
   }
@@ -149,7 +160,7 @@ function speechParams(parcel: Parcel, locale: Locale, now: number): Record<strin
     newNumber: s?.handoff?.trackingNumber ?? '',
     reason: t(`engine.reason.${s?.delayReason && hasKey(`engine.reason.${s.delayReason}`) ? s.delayReason : 'weather'}`, undefined, locale),
     where: t(`engine.where.${whereKey}`, undefined, locale),
-    day: t(`engine.wdFull.${new Date(nextWorkingDay(now)).getDay() + 1}`, undefined, locale),
+    day: t(`engine.wdFull.${new Date(nextWorkingDay(now, restCountryFor(parcel) ?? 'KR')).getDay() + 1}`, undefined, locale),
     pickupPlace: lt(s?.pickup?.place, locale) || place,
     hours: Math.max(1, Math.round((now - lastTime) / 3.6e6)),
   };

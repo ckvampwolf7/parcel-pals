@@ -2,7 +2,7 @@
  * Smart paste: pull tracking numbers out of a whole KakaoTalk 알림톡 / SMS / email blob.
  * Carrier-name keywords near a number pick the carrier; phone numbers, dates and order numbers are ignored.
  */
-import { CARRIERS, detectCarriers, getCarrier } from './carriers';
+import { CARRIERS, detectCarriers, digitWordGroups, getCarrier, stripUspsZip } from './carriers';
 
 export interface ExtractedNumber {
   trackingNumber: string;
@@ -29,10 +29,11 @@ const CARRIER_KEYWORDS: Array<[RegExp, string]> = [
   [/대신택배/g, 'kr.daesin'],
   [/GS\s*POSTBOX|편의점\s*택배|반값\s*택배|CVSNET/g, 'kr.cvsnet'],
   [/쿠팡|로켓배송|COUPANG/g, 'kr.coupangls'],
-  [/\bUPS\b/g, 'us.ups'],
+  [/\bUPS\b|UNITED\s*PARCEL/g, 'us.ups'],
   [/FEDEX|페덱스/g, 'us.fedex'],
   [/\bDHL\b/g, 'de.dhl'],
-  [/USPS/g, 'us.usps'],
+  [/USPS|U\.?S\.?\s*POSTAL|POSTAL\s*SERVICE/g, 'us.usps'],
+  [/AMAZON\s*(LOGISTICS|SHIPPING)|AMAZON\s*TRACKING|아마존\s*로지스틱스/g, 'us.amazon'],
   [/차이냐오|CAINIAO/g, 'cn.cainiao'],
   [/YUNEXPRESS|윈익스프레스/g, 'cn.yunexpress'],
   [/4PX/g, 'cn.4px'],
@@ -57,7 +58,7 @@ const SHOP_KEYWORDS: Array<[RegExp, string]> = [
 /** Shop → likely domestic carrier for ambiguous digit numbers (research: Temu → Hanjin, AliExpress → CJ). */
 const SHOP_CARRIER_PRIOR: Record<string, string> = { aliexpress: 'kr.cjlogistics', temu: 'kr.hanjin', coupang: 'kr.coupangls' };
 
-const LABEL_NEAR = /(운송장|송장|등기|추적|조회|TRACKING|WAYBILL|AWB|INVOICE|번호\s*[:：])/;
+const LABEL_NEAR = /(운송장|송장|등기|추적|조회|TRACKING|WAYBILL|AWB|INVOICE|번호\s*[:：]|TRACKING\s*(NO|NUMBER|#)|SHIPMENT\s*ID)/;
 const NEGATIVE_NEAR = /(주문\s*번호|주문번호|ORDER|결제|승인|전화|연락처|TEL|휴대폰|문의|고객센터|사업자|계좌|우편번호|인증)/;
 
 function nearestKeywordCarrier(text: string, start: number, end: number): string | undefined {
@@ -104,14 +105,17 @@ export function extractFromText(text: string): ExtractedNumber[] {
     if (/\s/.test(raw)) {
       let off = 0;
       for (const w of raw.split(/(\s+)/)) { if (w.trim()) pieces.push({ s: w, off }); off += w.length; }
+      // English labels glue onto the number ("TRACKING NUMBER 9400 1000 …"): also try the digit-bearing words alone.
+      for (const g of digitWordGroups(raw.split(/\s+/))) { const at = raw.indexOf(g); if (at > 0) pieces.push({ s: g, off: at }); }
     }
     for (const { s, off } of pieces) {
-      const n = s.replace(/[\s\-–—.]+/g, '');
+      const n = stripUspsZip(s.replace(/[\s\-–—.]+/g, ''));
       if (n.length < 8 || n.length > 30 || !/\d/.test(n) || !/^[A-Z0-9]+$/.test(n)) continue;
       const pStart = start + off;
       const pEnd = pStart + s.length;
       if (/^0\d{1,2}-\d{3,4}-\d{4}$/.test(s) || /^01[016789]\d{7,8}$/.test(n)) continue; // phone numbers
       if (/^1[5-8]\d{2}-?\d{4}$/.test(s)) continue; // nationwide 대표번호 like 1588-1255 (customer-service lines)
+      if (/^1?[ .-]?[2-9]\d{2}[ .-]\d{3}[ .-]\d{4}$/.test(s)) continue; // US phone numbers (800-463-3339)
       if (/(고객\s*센터|콜\s*센터|문의|전화|연락처|tel|phone|call|☎|📞)[\s:：.\-]*$/i.test(a.slice(Math.max(0, pStart - 12), pStart))) continue; // number right after a phone label
       if (/^(19|20)\d{2}[-.]?\d{2}[-.]?\d{2}$/.test(s) || /^(19|20)\d{6}$/.test(n)) continue; // dates
       if (/^\d{1,2}:\d{2}/.test(s)) continue;

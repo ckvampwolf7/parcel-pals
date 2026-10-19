@@ -3,7 +3,8 @@
  * Formats come from docs/research/carrier-formats.json. Korean plain-digit numbers are ambiguous:
  * detection returns RANKED candidates; strong formats (1Z…, S10, LP…) return one high-confidence match.
  */
-import type { Carrier, CarrierMatch, CharacterKind } from '@/types';
+import type { Carrier, CarrierMatch, CharacterKind, Region } from '@/types';
+import { getUserRegion } from './region';
 
 export const CARRIERS: Carrier[] = [
   // ── Korean domestic
@@ -76,9 +77,39 @@ export function trackingUrlFor(carrierId: string, trackingNumber: string): strin
   return tpl ? tpl.replace('{number}', encodeURIComponent(trackingNumber)) : undefined;
 }
 
-/** Character used when the user leaves it on 'auto'. */
-export function autoCharacter(carrier: Carrier | undefined): CharacterKind {
-  return carrier?.scope === 'international' ? 'plane' : 'truck';
+/**
+ * Is this carrier domestic for a user in `region`? In Korea: the Korean domestic carriers. In the US: the US
+ * carriers (FedEx, UPS, USPS, Amazon). The tracker.delivery test carrier counts as domestic everywhere.
+ */
+export function isDomesticCarrier(carrierId: string, region: Region = getUserRegion()): boolean {
+  const c = BY_ID.get(carrierId);
+  if (!c) return false;
+  if (c.id.startsWith('dev.')) return true;
+  return region === 'KR' ? c.country === 'KR' && c.scope === 'domestic' : c.country === region;
+}
+
+/**
+ * Korean domestic carriers speak the Korean hub/line-haul pipeline (간선상차, SM입고…); everyone else
+ * (FedEx, UPS, DHL, Cainiao…) gets neutral wording. Unknown ids keep the Korean wording.
+ */
+export function usesKoreanPipeline(carrierId: string | undefined): boolean {
+  const c = carrierId ? BY_ID.get(carrierId) : undefined;
+  if (!c || c.id.startsWith('dev.')) return true;
+  return c.country === 'KR' && c.scope === 'domestic';
+}
+
+/** Character used when the user leaves it on 'auto': domestic → truck, from abroad → plane. */
+export function autoCharacter(carrier: Carrier | undefined, region: Region = getUserRegion()): CharacterKind {
+  return !carrier || isDomesticCarrier(carrier.id, region) ? 'truck' : 'plane';
+}
+
+/** Carriers for manual pickers, split into the user's domestic ones (first) and the rest. Hides test carriers. */
+export function carriersForPicker(region: Region = getUserRegion()): { domestic: Carrier[]; other: Carrier[] } {
+  const pickable = CARRIERS.filter((c) => !c.id.startsWith('dev.'));
+  return {
+    domestic: pickable.filter((c) => isDomesticCarrier(c.id, region)),
+    other: pickable.filter((c) => !isDomesticCarrier(c.id, region)),
+  };
 }
 
 // ───────────────────────── normalization & validation ─────────────────────────
@@ -102,14 +133,36 @@ function looksLikeTrackingToken(n: string): boolean {
  */
 export function normalizeTrackingNumber(input: string): string {
   const a = toAscii(input).trim();
-  const whole = a.replace(SEP, '');
-  if (/^[A-Z0-9]*$/.test(whole)) return whole;
+  const whole = stripUspsZip(a.replace(SEP, ''));
+  // "FedEx tracking number 5161 3953 8183" has no punctuation but is still text, not one number.
+  const hasWords = /\s/.test(a) && a.split(/\s+/).some((w) => /^[A-Z]{3,}$/.test(w));
+  if (/^[A-Z0-9]*$/.test(whole) && !hasWords) return whole;
   const tokens = tokenize(a);
   if (tokens.length === 0) return whole.replace(/[^A-Z0-9]/g, '');
   const scored = tokens
-    .map((t) => ({ t, s: (detectRaw(t)[0]?.confidence ?? 0) + Math.min(t.length, 22) / 100 }))
+    .map((t) => ({ t, s: (detectRaw(t, getUserRegion())[0]?.confidence ?? 0) + Math.min(t.length, 22) / 100 }))
     .sort((x, y) => y.s - x.s);
   return scored[0].t;
+}
+
+/**
+ * A scanned USPS barcode carries "420" + the ZIP (5 or 9 digits) before the tracking number
+ * (420 90210 9400 1000 …). USPS tracks the part after it.
+ */
+export function stripUspsZip(n: string): string {
+  const m = /^420(?:\d{5}|\d{9})(9[1-5]\d{18,20})$/.exec(n);
+  return m ? m[1] : n;
+}
+
+/** Runs of consecutive words that contain digits ("TRACKING NUMBER 5161 3953 8183" → "5161 3953 8183"). */
+export function digitWordGroups(words: string[]): string[] {
+  const out: string[] = [];
+  let cur: string[] = [];
+  for (const w of [...words, '']) {
+    if (/\d/.test(w)) cur.push(w);
+    else { if (cur.length > 1) out.push(cur.join(' ')); cur = []; }
+  }
+  return out;
 }
 
 /** Candidate number tokens inside free text (separators inside a number are allowed). */
@@ -121,8 +174,11 @@ export function tokenize(text: string): string[] {
     const raw = m[0];
     // split a run of space-separated words into a numeric core: try the whole run and each word
     const variants = new Set<string>([raw.replace(SEP, '')]);
-    for (const part of raw.split(/\s+/)) variants.add(part.replace(SEP, ''));
-    for (const v of variants) {
+    const words = raw.split(/\s+/);
+    for (const part of words) variants.add(part.replace(SEP, ''));
+    for (const g of digitWordGroups(words)) variants.add(g.replace(SEP, ''));
+    for (const v0 of variants) {
+      const v = stripUspsZip(v0);
       if (!looksLikeTrackingToken(v)) continue;
       if (/^\d{3}-\d{3,4}-\d{4}$/.test(raw) && raw.startsWith('0')) continue; // phone number
       if (PHONE.test(v) && /^\d+$/.test(v) && v.length <= 11) continue;
@@ -208,9 +264,11 @@ export function makeS10(prefix: string, serial8: string, country: string): strin
 
 type Score = [id: string, confidence: number];
 
-function detectRaw(n: string): CarrierMatch[] {
+function detectRaw(n: string, region: Region): CarrierMatch[] {
   const scores: Score[] = [];
-  const add = (id: string, c: number) => scores.push([id, c]);
+  // In the US a bare-digit number is almost never a Korean parcel: keep Korean carriers as low fallbacks.
+  const us = region === 'US';
+  const add = (id: string, c: number) => scores.push([id, us && id.startsWith('kr.') && /^\d+$/.test(n) ? c * 0.4 : c]);
 
   if (/^1Z[0-9A-Z]{16}$/.test(n)) add('us.ups', isValidUps(n) ? 0.99 : 0.75);
   else if (/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(n)) {
@@ -236,7 +294,7 @@ function detectRaw(n: string): CarrierMatch[] {
     const m7 = isValidMod7(n);
     switch (n.length) {
       case 10:
-        add('kr.cjlogistics', 0.36); add('kr.hanjin', 0.32); add('de.dhl', m7 ? 0.24 : 0.1);
+        add('kr.cjlogistics', 0.36); add('kr.hanjin', 0.32); add('de.dhl', us ? 0.6 : m7 ? 0.24 : 0.1);
         add('kr.cvsnet', 0.12); add('kr.kdexp', 0.06);
         break;
       case 11:
@@ -246,7 +304,8 @@ function detectRaw(n: string): CarrierMatch[] {
         add('kr.cjlogistics', m7 ? 0.58 : 0.4); add('kr.hanjin', m7 ? 0.28 : 0.36); add('kr.lotte', m7 ? 0.4 : 0.26);
         // FedEx check digit passes → a strong hint (still below a mod-7-valid CJ number; the Add screen also
         // probes the top candidates live to settle it).
-        add('us.fedex', isValidFedex12(n) ? 0.5 : 0.1); add('kr.coupangls', 0.08); add('kr.cvsnet', 0.06); add('kr.kdexp', 0.04);
+        // In the US a 12-digit number is FedEx Express unless proven otherwise.
+        add('us.fedex', isValidFedex12(n) ? (us ? 0.92 : 0.5) : us ? 0.7 : 0.1); add('kr.coupangls', 0.08); add('kr.cvsnet', 0.06); add('kr.kdexp', 0.04);
         break;
       case 13:
         add('kr.epost', 0.72); add('kr.daesin', 0.2); add('kr.coupangls', 0.14); add('kr.kdexp', 0.05);
@@ -254,11 +313,11 @@ function detectRaw(n: string): CarrierMatch[] {
       case 14:
         add('kr.coupangls', 0.55); add('kr.kdexp', 0.2);
         break;
-      case 15:
-        add('us.fedex', 0.75);
+      case 15: // FedEx Ground (often starts with 96…)
+        add('us.fedex', /^96/.test(n) ? 0.85 : 0.75);
         break;
-      case 20: case 22:
-        add('us.fedex', 0.45);
+      case 20: case 22: // FedEx SSCC-18 based (00…/96…)
+        add('us.fedex', /^(00|96)/.test(n) ? 0.6 : 0.45);
         break;
       default:
         break;
@@ -277,13 +336,13 @@ function detectRaw(n: string): CarrierMatch[] {
  * Ranked carrier candidates for a tracking number (best first). Empty if nothing plausible.
  * Accepts messy input (spaces, dashes, full-width digits, pasted labels).
  */
-export function detectCarriers(input: string): CarrierMatch[] {
+export function detectCarriers(input: string, opts: { region?: Region } = {}): CarrierMatch[] {
   const n = normalizeTrackingNumber(input);
   if (n.length < MIN_TRACKING_LENGTH) return [];
-  return detectRaw(n);
+  return detectRaw(n, opts.region ?? getUserRegion());
 }
 
 /** Best guess carrier id for a number, or undefined. */
-export function bestCarrierId(input: string): string | undefined {
-  return detectCarriers(input)[0]?.carrier.id;
+export function bestCarrierId(input: string, opts: { region?: Region } = {}): string | undefined {
+  return detectCarriers(input, opts)[0]?.carrier.id;
 }

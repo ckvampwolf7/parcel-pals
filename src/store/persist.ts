@@ -40,6 +40,7 @@ export function sanitizeSettings(raw: unknown, defaults: Settings): Settings {
   if (typeof raw.onboarded === 'boolean') s.onboarded = raw.onboarded;
   if (typeof raw.liveRefreshMin === 'number' && Number.isFinite(raw.liveRefreshMin) && raw.liveRefreshMin >= 1 && raw.liveRefreshMin <= 1440) s.liveRefreshMin = raw.liveRefreshMin;
   if (typeof raw.trackerApiKey === 'string' && raw.trackerApiKey.trim()) s.trackerApiKey = raw.trackerApiKey.trim();
+  if (raw.region === 'KR' || raw.region === 'US') s.region = raw.region;
   return s;
 }
 
@@ -78,6 +79,7 @@ export function sanitizeParcel(raw: unknown): Parcel | null {
   if (str(raw.error)) p.error = raw.error;
   if (raw.demo === true) p.demo = true;
   if (isIso(raw.lastCheckedAt)) p.lastCheckedAt = raw.lastCheckedAt;
+  if (isIso(raw.modifiedAt)) p.modifiedAt = raw.modifiedAt;
   return p; // `refreshing` is never restored
 }
 

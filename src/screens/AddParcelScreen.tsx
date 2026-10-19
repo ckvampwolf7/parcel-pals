@@ -2,7 +2,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { Carrier, CarrierMatch, CharacterKind } from '@/types';
 import type { ProbeResult } from '@/engine';
-import { CARRIERS, autoCharacter, detectCarriers, getCarrier, normalizeTrackingNumber, supportsLiveTracking } from '@/engine';
+import { autoCharacter, carriersForPicker, detectCarriers, getCarrier, normalizeTrackingNumber, supportsLiveTracking } from '@/engine';
 import { actions, useParcels, useSettings } from '@/store';
 import { Character, CharacterPicker } from '@/characters';
 import { requestNotificationPermission } from '@/pwa';
@@ -72,12 +72,12 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
   const candidates: CarrierMatch[] = useMemo(() => {
     if (!number || problem) return [];
     let list: CarrierMatch[] = [];
-    try { list = detectCarriers(number); } catch { list = []; }
+    try { list = detectCarriers(number, { region: settings.region }); } catch { list = []; }
     const hinted = found?.find((f) => f.trackingNumber === number)?.carrierId;
     const hc = hinted ? getCarrier(hinted) : undefined;
     if (hc && !list.some((m) => m.carrier.id === hc.id)) list = [{ carrier: hc, confidence: 0.9 }, ...list];
     return list.slice(0, 4);
-  }, [number, problem, found]);
+  }, [number, problem, found, settings.region]);
 
   // Auto-confirm: when the number fits several carriers, ask the top candidates live which one has records.
   const [probe, setProbe] = useState<{ number: string; results: ProbeResult[] | null } | null>(null);
@@ -160,9 +160,9 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
     else { palSays = t('ui.add.carrier.unknown'); palMood = 'worried'; }
   }
 
-  const pickable = CARRIERS.filter((c) => !c.id.startsWith('dev.'));
-  const domestic = pickable.filter((c) => c.scope === 'domestic');
-  const intl = pickable.filter((c) => c.scope !== 'domestic');
+  // The user's own country first (Korean carriers in Korea, FedEx/UPS/USPS/Amazon in the US).
+  const { domestic, other: intl } = carriersForPicker(settings.region);
+  const us = settings.region === 'US';
   const examples = [1, 2, 3, 4].map((i) => t(`ui.add.nickname.ex${i}`));
 
   return (
@@ -239,11 +239,11 @@ export default function AddParcelScreen({ prefill }: { prefill?: string }) {
             <span className="add-select__box">
               <select id={selectId} data-testid="carrier-select" value={carrierId} onChange={(e) => e.target.value && setManual({ id: e.target.value, via: 'select' })}>
                 <option value="" disabled>{t('ui.add.carrier.otherLabel')}</option>
-                <optgroup label={t('ui.add.carrier.domestic')}>
+                <optgroup label={t(us ? 'ui.add.carrier.domesticUS' : 'ui.add.carrier.domestic')}>
                   {domestic.map((c) => <option key={c.id} value={c.id}>{locale === 'ko' ? c.nameKo : c.nameEn}</option>)}
                 </optgroup>
                 {intl.length > 0 && (
-                  <optgroup label={t('ui.add.carrier.international')}>
+                  <optgroup label={t(us ? 'ui.add.carrier.otherUS' : 'ui.add.carrier.international')}>
                     {intl.map((c) => <option key={c.id} value={c.id}>{locale === 'ko' ? c.nameKo : c.nameEn}</option>)}
                   </optgroup>
                 )}

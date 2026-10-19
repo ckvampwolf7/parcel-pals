@@ -1,6 +1,7 @@
 /**
  * Minimal hash router (works on static hosting / file:// and inside PWAs).
  * Routes:  #/  home · #/add  add parcel (?n=<number> prefill) · #/p/<id>  parcel detail · #/inbox · #/settings
+ *          #/link/<syncKey>  join another device's cloud sync
  */
 import { useSyncExternalStore } from 'react';
 
@@ -10,6 +11,7 @@ export type Route =
   | { name: 'parcel'; id: string }
   | { name: 'inbox' }
   | { name: 'settings' }
+  | { name: 'link'; key: string }
   | { name: 'notFound'; path: string };
 
 export function parseRoute(hash: string): Route {
@@ -22,6 +24,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'p' && parts[1]) return { name: 'parcel', id: decodeURIComponent(parts[1]) };
   if (parts[0] === 'inbox') return { name: 'inbox' };
   if (parts[0] === 'settings') return { name: 'settings' };
+  if (parts[0] === 'link' && parts[1]) return { name: 'link', key: decodeURIComponent(parts[1]) };
   return { name: 'notFound', path };
 }
 

@@ -8,6 +8,8 @@ import './styles/global.css';
 import App from './App';
 import { actions, simNow, startStore } from './store';
 import { initNotifications, initPwa } from './pwa';
+import { startSync } from './sync';
+import { startPushUpkeep } from './pwa/push';
 
 // Web Share Target (manifest share_target, GET): "./?title=…&text=…&url=…" → open Add with the shared text.
 (() => {
@@ -27,6 +29,8 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has('debug')) {
 }
 initNotifications();
 initPwa();
+startSync();
+startPushUpkeep();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

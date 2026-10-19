@@ -5,6 +5,8 @@
  */
 
 export type Locale = 'ko' | 'en';
+/** Where the user lives: decides which carriers are "domestic", the holiday calendar and carrier ranking. */
+export type Region = 'KR' | 'US';
 
 /** Text that carries both languages (simulated data provides both; real APIs fill both with the same raw string). */
 export interface LocalizedText {
@@ -153,6 +155,8 @@ export interface Parcel {
   lastCheckedAt?: string;
   /** Demo/sample parcel (created by loadDemo) */
   demo?: boolean;
+  /** Real time (ISO) of the last user edit (add, rename, pal, carrier, archive) — orders edits across synced devices. */
+  modifiedAt?: string;
 }
 
 export type ThemePref = 'system' | 'light' | 'dark';
@@ -179,6 +183,8 @@ export interface Settings {
    * Stored only on this device.
    */
   trackerApiKey?: string;
+  /** Where the user lives (auto-detected on first run from the time zone / language). */
+  region: Region;
 }
 
 export interface InboxItem {

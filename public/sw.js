@@ -13,6 +13,7 @@
  *              everything else     → stale-while-revalidate
  *  - activate: delete caches from older versions, claim clients.
  *  - message:  {type:'SKIP_WAITING'} activates a waiting worker (the page decides when).
+ *  - push: show the server's notification (Web Push).
  *  - notificationclick: focus an open window on the parcel (or open one).
  */
 /* eslint-disable no-restricted-globals */
@@ -138,6 +139,22 @@ async function trimRuntime() {
 }
 
 // ───────────── notifications ─────────────
+
+// Web Push from the Parcel Pals server poller (supabase/functions/poll). Payload: { title, body, tag, hash }.
+// Same tag as the in-app notifications (parcel-<id>), so the two never stack up for one parcel.
+self.addEventListener('push', (event) => {
+  let p = {};
+  try { p = event.data ? event.data.json() : {}; } catch { p = { body: event.data ? event.data.text() : '' }; }
+  const title = typeof p.title === 'string' && p.title ? p.title : '택배친구';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: typeof p.body === 'string' ? p.body : '',
+    tag: typeof p.tag === 'string' ? p.tag : undefined,
+    renotify: !!p.tag,
+    icon: toUrl('./icons/icon-192.png'),
+    badge: toUrl('./icons/icon-192.png'),
+    data: { hash: typeof p.hash === 'string' ? p.hash : '#/' },
+  }));
+});
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

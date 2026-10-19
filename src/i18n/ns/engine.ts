@@ -256,19 +256,26 @@ const ko: Tree = {
     exception: '배송 중 문제가 생겼어요. 택배사나 판매자에게 확인이 필요해요.',
     transit: '다음 장소로 이동하는 중이에요.',
   },
-  // ── international carriers' real data (FedEx, UPS, DHL…): neutral wording instead of the Korean domestic pipeline.
-  //    Used only for live parcels from carriers with scope 'international'; missing keys fall back to the base ones.
+  // ── real data from carriers outside the Korean domestic pipeline (FedEx, UPS, USPS, DHL…): neutral wording.
+  //    Used only for live parcels (usesKoreanPipeline() false); missing keys fall back to the base ones.
+  //    restDay/night only show for a US carrier when the user lives in the US (US federal holidays).
   sayIntl: {
     truck: {
       pickedUp: ['부릉! {place}에서 {name} 상자를 받았어요.', '짐칸에 잘 실었어요. 첫 거점으로 달려갈게요!'],
       pickupReady: ['{pickupPlace}에 잘 내려놨어요! 시간 될 때 찾아가 주세요.'],
+      night: ['밤이라 {place}에서 잠깐 쉬어요. 아침에 다시 달릴게요! 🌙'],
+      restDay: ['오늘은 택배사가 쉬는 날이에요. {day}에 다시 부릉 출발할게요!'],
     },
     plane: {
       customsCleared: ['통관 도장 쾅! 다시 배송길에 올라요.'],
       pickupReady: ['긴 여행 끝에 {pickupPlace} 도착! 데리러 와 주세요~'],
+      night: ['밤하늘 보며 {place}에서 쉬고 있어요. 아침에 또 슝~ 🌙'],
+      restDay: ['오늘은 배송이 쉬는 날이라 잠깐 낮잠 중~ {day}에 다시 움직여요.'],
     },
     bunny: {
       pickupReady: ['{pickupPlace}에서 기다릴게요! 데리러 와요!'],
+      night: ['쿨쿨… 아침이 되면 다시 깡총 출발할게요. 🌙'],
+      restDay: ['오늘은 쉬는 날! {day}에 다시 깡총 뛸게요.'],
     },
   },
   cpIntl: {
@@ -306,6 +313,8 @@ const ko: Tree = {
   },
   nextIntl: {
     infoReceived: '보내는 분이 물건을 넘기면 기록이 이어져요. 하루 이틀 걸릴 수 있어요.',
+    night: '밤사이엔 기록이 뜸할 수 있어요. 아침이면 새 기록이 생길 거예요.',
+    restDay: '오늘은 택배사 휴무일(일요일·연방 공휴일)이에요. {day}부터 다시 움직여요.',
     pickedUp: '첫 거점에서 분류를 마치면 다음 거점이나 공항으로 이동해요.',
     moving: '다음 거점에 도착하면 분류를 거쳐 다시 출발해요. 해외 구간은 기록 사이 간격이 길 수 있어요.',
     atHub: '분류가 끝나면 다음 거점이나 공항으로 이동해요. 해외 구간은 기록 사이 간격이 길 수 있어요.',
@@ -601,13 +610,19 @@ const en: Tree = {
     truck: {
       pickedUp: ['Vroom! Got {name} at {place}.', 'Loaded up! Heading to the first facility.'],
       pickupReady: ['Dropped off at {pickupPlace}! Pick it up when you can.'],
+      night: ['Resting at {place} tonight. Back on the road in the morning! 🌙'],
+      restDay: ['The carrier is off today. I’ll vroom again on {day}!'],
     },
     plane: {
       customsCleared: ['Stamped and cleared! Back on the road.'],
       pickupReady: ['Long trip, and now I’m at {pickupPlace}. Come get me~'],
+      night: ['Resting at {place} under the night sky. Whoosh again in the morning! 🌙'],
+      restDay: ['No deliveries today, so I’m napping~ Moving again on {day}.'],
     },
     bunny: {
       pickupReady: ['Waiting at {pickupPlace}! Come pick me up!'],
+      night: ['Zzz… I’ll hop off again in the morning. 🌙'],
+      restDay: ['Day off! I’ll hop again on {day}.'],
     },
   },
   cpIntl: {
@@ -645,6 +660,8 @@ const en: Tree = {
   },
   nextIntl: {
     infoReceived: 'Updates continue once the sender hands it over. This can take a day or two.',
+    night: 'Scans can be sparse overnight. Expect a new one by morning.',
+    restDay: 'The carrier is off today (Sunday or a federal holiday). Things move again on {day}.',
     pickedUp: 'After sorting at the first facility it moves on to the next facility or the airport.',
     moving: 'At the next facility it gets sorted and moves on. International legs can go quiet between updates.',
     atHub: 'After sorting it moves on to the next facility or the airport. International legs can go quiet between updates.',

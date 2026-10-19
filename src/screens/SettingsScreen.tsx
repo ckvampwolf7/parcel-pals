@@ -10,6 +10,9 @@ import { ConfirmSheet, Row, RowGroup, Segmented, Spinner, Switch } from '@/compo
 import { Icon } from '@/components/Icon';
 import { showToast } from '@/components/toast';
 import { version } from '../../package.json';
+import { SyncSection } from './settings/SyncSection';
+import { disconnectSync, getSyncMeta } from '@/sync';
+import { disablePush } from '@/pwa/push';
 import './settings/settings.css';
 
 type Perm = NotificationPermission | 'unsupported';
@@ -23,7 +26,7 @@ export default function SettingsScreen() {
   const [perm, setPerm] = useState<Perm>(readPerm);
   const [confirmReset, setConfirmReset] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState(false);
-  const ids = { locale: useId(), theme: useId(), motion: useId(), notif: useId(), notifHint: useId(), speed: useId(), pal: useId(), every: useId(), key: useId() };
+  const ids = { locale: useId(), region: useId(), theme: useId(), motion: useId(), notif: useId(), notifHint: useId(), speed: useId(), pal: useId(), every: useId(), key: useId() };
   const [liveTest, setLiveTest] = useState<'idle' | 'busy' | 'ok' | 'fail'>('idle');
   const [addingTest, setAddingTest] = useState(false);
   const [keyDraft, setKeyDraft] = useState(s.trackerApiKey ?? '');
@@ -56,6 +59,9 @@ export default function SettingsScreen() {
   };
   const reset = () => {
     setConfirmReset(false);
+    // Reset is local: leave the cloud copy (other devices) alone by disconnecting first.
+    const m = getSyncMeta();
+    if (m.key) { void disablePush(m.key, m.pushEndpoint); disconnectSync(); }
     actions.resetAll();
     navigate('/', { replace: true });
   };
@@ -78,6 +84,9 @@ export default function SettingsScreen() {
         <Row icon="globe" iconColor="var(--c-char-plane)" label={t('ui.settings.locale')} labelId={ids.locale}
           below={<Segmented labelledBy={ids.locale} testId="setting-locale" value={s.locale} onChange={(v) => set({ locale: v })}
             options={[{ value: 'ko', label: '한국어', testId: 'setting-locale-ko' }, { value: 'en', label: 'English', testId: 'setting-locale-en' }]} />} />
+        <Row icon="pin" iconColor="var(--c-char-truck)" label={t('ui.settings.region')} labelId={ids.region} hint={t('ui.settings.region.hint')}
+          below={<Segmented labelledBy={ids.region} testId="setting-region" value={s.region} onChange={(v) => set({ region: v })}
+            options={[{ value: 'KR', label: t('ui.settings.region.KR'), testId: 'setting-region-KR' }, { value: 'US', label: t('ui.settings.region.US'), testId: 'setting-region-US' }]} />} />
         <Row icon="palette" iconColor="var(--c-lilac)" label={t('ui.settings.theme')} labelId={ids.theme}
           below={<Segmented labelledBy={ids.theme} value={s.theme} onChange={(v) => set({ theme: v })} options={[
             { value: 'system', label: t('ui.settings.theme.system'), icon: 'phone', testId: 'setting-theme-system' },
@@ -98,6 +107,8 @@ export default function SettingsScreen() {
             <CharacterPicker value={s.defaultCharacter} onChange={(v) => set({ defaultCharacter: v })} includeAuto label={t('ui.settings.defaultPal')} />
           </div>} />
       </RowGroup>
+
+      <SyncSection />
 
       <RowGroup title={t('ui.settings.group.live')} footer={t('ui.settings.live.footer')}>
         <Row icon="globe" iconColor="var(--c-tone-success)" label={t('ui.settings.live.status')} hint={t('ui.settings.live.status.hint')}

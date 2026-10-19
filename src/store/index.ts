@@ -8,7 +8,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { AddParcelInput, AppEvent, Checkpoint, InboxItem, Parcel, Settings } from '@/types';
 import {
   autoCharacter, carrierName, checkpointLine, createSimClock, demoCreatedAt, demoParcelSeeds, detectCarriers, getCarrier,
-  dummyTrackingNumber, getProviderFor, LiveTrackingError, normalizeTrackingNumber, probeCarriers, setLiveApiKey, trackLive, type ProbeResult,
+  detectRegion, dummyTrackingNumber, getProviderFor, LiveTrackingError, normalizeTrackingNumber, probeCarriers, setLiveApiKey, setUserRegion,
+  trackLive, type ProbeResult,
   validateTrackingNumber, type SimClock,
 } from '@/engine';
 import { setCurrentLocale } from '@/i18n';
@@ -28,7 +29,14 @@ export const DEFAULT_SETTINGS: Settings = {
   reduceMotion: 'system',
   onboarded: false,
   liveRefreshMin: 10,
+  region: 'KR',
 };
+
+/** Defaults for this device: region from the time zone / language; a US user starts in English. */
+function deviceDefaults(): Settings {
+  const region = detectRegion();
+  return { ...DEFAULT_SETTINGS, region, locale: region === 'US' ? 'en' : DEFAULT_SETTINGS.locale };
+}
 
 /** Live lookups: never more often than this, even for manual refreshes (be kind to the free API). */
 const LIVE_MIN_GAP_MS = 30_000;
@@ -92,7 +100,8 @@ function schedulePersist() {
 }
 
 function hydrate() {
-  const saved = loadPersisted(DEFAULT_SETTINGS);
+  // Saved settings from before the region setting existed get the detected region but keep their language.
+  const saved = loadPersisted({ ...DEFAULT_SETTINGS, region: detectRegion() });
   if (saved) {
     state = { parcels: saved.parcels, settings: saved.settings, inbox: saved.inbox };
     // Demo speed only applies while the app is open: time spent closed counts at 1× (real time),
@@ -104,13 +113,14 @@ function hydrate() {
       : { anchorReal: Date.now(), anchorSim: Date.now(), speed: saved.settings.demoSpeed });
     if (clock.toJSON().speed !== saved.settings.demoSpeed) clock.setSpeed(saved.settings.demoSpeed);
   } else {
-    state = { parcels: [], settings: { ...DEFAULT_SETTINGS }, inbox: [] };
+    state = { parcels: [], settings: deviceDefaults(), inbox: [] };
     clock = createSimClock({ anchorReal: Date.now(), anchorSim: Date.now(), speed: DEFAULT_SETTINGS.demoSpeed });
   }
   deliveredNotified.clear();
   for (const p of state.parcels) if (p.snapshot?.status === 'delivered') deliveredNotified.add(p.id);
   setCurrentLocale(state.settings.locale);
   setLiveApiKey(state.settings.trackerApiKey);
+  setUserRegion(state.settings.region);
 }
 hydrate();
 
@@ -249,7 +259,7 @@ export const actions = {
     const trackingNumber = normalizeTrackingNumber(input.trackingNumber);
     const existing = findByTrackingNumber(trackingNumber);
     if (existing) {
-      if (existing.archived) patchParcel(existing.id, { archived: false });
+      if (existing.archived) patchParcel(existing.id, { archived: false, modifiedAt: new Date().toISOString() });
       return find(existing.id)!;
     }
     const carrierId = (input.carrierId && getCarrier(input.carrierId) ? input.carrierId : undefined)
@@ -261,7 +271,7 @@ export const actions = {
       nickname: input.nickname?.trim() || `${carrierName(carrierId, locale)} ${trackingNumber.slice(-4)}`,
       character: input.character ?? (def === 'auto' ? autoCharacter(getCarrier(carrierId)) : def),
       createdAt: (opts?.demo ? clock.now() : new Date()).toISOString(), archived: false, snapshot: null, unread: 0,
-      ...(opts?.demo ? { demo: true } : {}),
+      ...(opts?.demo ? { demo: true } : { modifiedAt: new Date().toISOString() }),
     };
     setState({ parcels: [parcel, ...state.parcels] });
     await refreshOne(parcel.id);
@@ -281,14 +291,14 @@ export const actions = {
       const nn = clean.nickname.trim();
       if (nn) clean.nickname = nn; else delete clean.nickname;
     }
-    patchParcel(id, clean);
+    patchParcel(id, { ...clean, modifiedAt: new Date().toISOString() });
   },
   /** Switch a parcel to another carrier (wrong guess) and look it up again from scratch. */
   async changeCarrier(id: string, carrierId: string) {
     const p = find(id);
     if (!p || !getCarrier(carrierId) || p.carrierId === carrierId) return;
     setState({
-      parcels: state.parcels.map((x) => (x.id === id ? { ...x, carrierId, snapshot: null, error: undefined, lastCheckedAt: undefined, unread: 0, lastSeenCheckpointId: undefined } : x)),
+      parcels: state.parcels.map((x) => (x.id === id ? { ...x, carrierId, snapshot: null, error: undefined, lastCheckedAt: undefined, unread: 0, lastSeenCheckpointId: undefined, modifiedAt: new Date().toISOString() } : x)),
       inbox: state.inbox.filter((i) => i.parcelId !== id),
     });
     await refreshOne(id);
@@ -312,7 +322,7 @@ export const actions = {
     const parcel: Parcel = {
       id: uid(), trackingNumber, carrierId: 'dev.track.dummy',
       nickname: state.settings.locale === 'ko' ? '연결 테스트 택배' : 'Connection test parcel',
-      character: 'bunny', createdAt: new Date().toISOString(), archived: false, snapshot: null, unread: 0,
+      character: 'bunny', createdAt: new Date().toISOString(), archived: false, snapshot: null, unread: 0, modifiedAt: new Date().toISOString(),
     };
     setState({ parcels: [parcel, ...state.parcels] });
     await refreshOne(parcel.id);
@@ -370,6 +380,10 @@ export const actions = {
     if (patch.locale && patch.locale !== state.settings.locale) setCurrentLocale(patch.locale);
     if (patch.liveRefreshMin !== undefined && !(patch.liveRefreshMin >= 1)) next.liveRefreshMin = state.settings.liveRefreshMin;
     if (patch.trackerApiKey !== undefined) { next.trackerApiKey = patch.trackerApiKey.trim() || undefined; setLiveApiKey(next.trackerApiKey); }
+    if (patch.region !== undefined) {
+      if (patch.region === 'KR' || patch.region === 'US') setUserRegion(patch.region);
+      else next.region = state.settings.region;
+    }
     setState({ settings: next });
     if (patch.refreshIntervalSec !== undefined) reschedulePolling();
   },
@@ -403,14 +417,30 @@ export const actions = {
     schedulePersist();
     await refreshAllSequential(true, (p) => !!p.demo); // only demo parcels live on the simulation clock
   },
+  /**
+   * Replace the parcel list with the result of a cloud sync merge (src/sync). Events new to this device go to the
+   * inbox and unread counts quietly — the server already sent a push notification for them.
+   */
+  applySync(parcels: Parcel[], fresh: Record<string, Checkpoint[]>) {
+    const ids = new Set(parcels.map((p) => p.id));
+    setState({ parcels, inbox: state.inbox.filter((i) => ids.has(i.parcelId)) });
+    for (const [id, cps] of Object.entries(fresh)) {
+      const p = find(id);
+      if (!p || !cps.length) continue;
+      addInbox(inboxItemsFor(p, cps));
+      if (p.snapshot?.status === 'delivered') deliveredNotified.add(id);
+    }
+  },
   /** Wipe everything (parcels, inbox, settings, clock) and clear storage. */
   resetAll() {
     clearPersisted();
     clock = createSimClock({ anchorReal: Date.now(), anchorSim: Date.now(), speed: DEFAULT_SETTINGS.demoSpeed });
     deliveredNotified.clear();
     rerun.clear();
-    setCurrentLocale(DEFAULT_SETTINGS.locale);
-    setState({ parcels: [], inbox: [], settings: { ...DEFAULT_SETTINGS } });
+    const fresh = deviceDefaults();
+    setCurrentLocale(fresh.locale);
+    setUserRegion(fresh.region);
+    setState({ parcels: [], inbox: [], settings: fresh });
     reschedulePolling();
   },
 };

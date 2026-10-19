@@ -17,7 +17,7 @@ export function AppShell({ route, children }: { route: Route; children: ReactNod
   const settings = useSettings();
   useStoreEventToasts();
   // A shared message (#/add?n=…) goes straight to the form even before onboarding.
-  const gate = !settings.onboarded && !(route.name === 'add' && route.prefill);
+  const gate = !settings.onboarded && !(route.name === 'add' && route.prefill) && route.name !== 'link';
   const showTabs = !gate && !NO_TABS.includes(route.name);
   return (
     <div className={`app-frame ${showTabs ? 'has-tabbar' : ''}`}>

@@ -23,6 +23,15 @@ describe('SettingsScreen', () => {
     expect(upd).toHaveBeenCalledWith({ defaultCharacter: 'bunny' });
   });
 
+  it('switches the home region', () => {
+    const upd = vi.spyOn(actions, 'updateSettings');
+    render(<SettingsScreen />);
+    expect(screen.getByTestId('setting-region-KR')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByTestId('setting-region-US'));
+    expect(upd).toHaveBeenCalledWith({ region: 'US' });
+    expect(screen.getByTestId('setting-region-US')).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('toggles notifications', async () => {
     const upd = vi.spyOn(actions, 'updateSettings');
     render(<SettingsScreen />);
