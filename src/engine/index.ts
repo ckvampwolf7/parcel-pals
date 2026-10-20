@@ -24,7 +24,7 @@ export { classifyCarrierText, statusFromCarrierText, type JargonTerm } from './s
 export { snapshotAt, planFor, scenarioFor, checkpointCode, type EventCode, type DelayReason, type PickupKind, type Plan } from './simulator';
 export { createSimClock, type SimClock, type SimClockState } from './clock';
 export { isRestDay, isHoliday, type HolidayCountry } from './calendar';
-export { detectRegion, getUserRegion, setUserRegion } from './region';
+export { detectLocale, detectRegion, getUserRegion, setUserRegion } from './region';
 
 // presentation
 export { statusTone, statusLabel, moodFor, isMoving, STATUS_TAGS, type StatusTone } from './status';

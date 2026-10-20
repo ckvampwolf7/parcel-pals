@@ -24,6 +24,17 @@ export function detectRegion(env: { timeZone?: string; languages?: readonly stri
   return 'KR';
 }
 
+/**
+ * App language for a fresh install: the device language when it is Korean or English (a Korean speaker living in
+ * the US keeps Korean), otherwise English for US devices and Korean elsewhere.
+ */
+export function detectLocale(region: Region, env: { languages?: readonly string[] } = readEnv()): 'ko' | 'en' {
+  const lang = env.languages?.[0]?.toLowerCase() ?? '';
+  if (lang.startsWith('ko')) return 'ko';
+  if (lang.startsWith('en')) return 'en';
+  return region === 'US' ? 'en' : 'ko';
+}
+
 let envOverride: Region | undefined;
 /** TEST-ONLY: pin what detectRegion() reads from the device (undefined = real device). */
 export function __setDetectedRegionForTests(region: Region | undefined): void { envOverride = region; }

@@ -8,7 +8,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { AddParcelInput, AppEvent, Checkpoint, InboxItem, Parcel, Settings } from '@/types';
 import {
   autoCharacter, carrierName, checkpointLine, createSimClock, demoCreatedAt, demoParcelSeeds, detectCarriers, getCarrier,
-  detectRegion, dummyTrackingNumber, getProviderFor, LiveTrackingError, normalizeTrackingNumber, probeCarriers, setLiveApiKey, setUserRegion,
+  detectLocale, detectRegion, dummyTrackingNumber, getProviderFor, LiveTrackingError, normalizeTrackingNumber, probeCarriers, setLiveApiKey, setUserRegion,
   trackLive, type ProbeResult,
   validateTrackingNumber, type SimClock,
 } from '@/engine';
@@ -32,10 +32,10 @@ export const DEFAULT_SETTINGS: Settings = {
   region: 'KR',
 };
 
-/** Defaults for this device: region from the time zone / language; a US user starts in English. */
+/** Defaults for this device: region from the time zone / language; language from the device (see detectLocale). */
 function deviceDefaults(): Settings {
   const region = detectRegion();
-  return { ...DEFAULT_SETTINGS, region, locale: region === 'US' ? 'en' : DEFAULT_SETTINGS.locale };
+  return { ...DEFAULT_SETTINGS, region, locale: detectLocale(region) };
 }
 
 /** Live lookups: never more often than this, even for manual refreshes (be kind to the free API). */

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Parcel } from '@/types';
 import {
-  autoCharacter, buildLiveSnapshot, carriersForPicker, detectCarriers, detectRegion, extractFromText, getCarrier,
+  autoCharacter, buildLiveSnapshot, carriersForPicker, detectCarriers, detectLocale, detectRegion, extractFromText, getCarrier,
   isDomesticCarrier, isHoliday, isRestDay, nextStepLine, normalizeTrackingNumber, setUserRegion, speechSituation,
   trackingUrlFor, usesKoreanPipeline, v1ToEvents, validateTrackingNumber,
 } from '@/engine';
@@ -141,5 +141,15 @@ describe('live US parcels for a US user', () => {
     // A Korean user's FedEx parcel abroad ignores rest days entirely.
     setUserRegion('KR');
     expect(speechSituation(p, thanksgiving)).not.toBe('restDay');
+  });
+});
+
+describe('detectLocale', () => {
+  it('keeps the device language: a Korean phone in the US stays in Korean', () => {
+    expect(detectLocale('US', { languages: ['ko-KR', 'en-US'] })).toBe('ko');
+    expect(detectLocale('KR', { languages: ['en-GB'] })).toBe('en');
+    expect(detectLocale('US', { languages: ['es-US'] })).toBe('en');
+    expect(detectLocale('KR', { languages: ['ja-JP'] })).toBe('ko');
+    expect(detectLocale('US', {})).toBe('en');
   });
 });

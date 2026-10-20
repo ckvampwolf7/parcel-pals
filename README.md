@@ -68,7 +68,7 @@ npm run preview    # 빌드 결과 확인
 ## 품질 확인
 ```bash
 npm run typecheck  # TypeScript strict
-npm test           # 단위 테스트 (Vitest, 227개)
+npm test           # 단위 테스트 (Vitest, 228개)
 npm run e2e        # E2E + 접근성(axe) + 오프라인 + 실시간 조회 + 동기화 테스트 (Playwright, 모바일·데스크톱 136개)
 ```
 
